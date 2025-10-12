@@ -24,3 +24,9 @@ cifar10_resnet18：
     3-3 NegGrad: 
     3-4 BadTeaching:
     3-5 Randomlabel:
+
+
+Dataset
+    MNIST: https://mega.nz/file/D8YUAIba#C0SN5sFH9X8C82DBPiD4w1YAMkBh6EgQpKlPbk4CPtI
+    MNIST_FASHION: https://mega.nz/file/jlh3RDhT#01O706fAMAGi4tUTAuMM4SdT6Z7wLXWO7wsM6g10cEc
+    CIFAR10: https://mega.nz/file/vowzEQCK#TgQcsJAOAKAiUA7MGBPTpJmdHR55_H6TRUNeEWlAqfM
