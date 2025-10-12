@@ -1,0 +1,18 @@
+1. Client 1 with Biased Label 9（key）
+
+mnist_resnet18：
+mnistfasion_resnet18：
+cifar10_resnet18：
+
+2. Clients with Identical Data Distribution（key）
+
+mnist_resnet18：
+mnistfasion_resnet18：
+cifar10_resnet18：
+    2-3-1 client1-5: https://mega.nz/file/WphgmCZJ#jOETzM0QYr4nGg2SRHvndGnnuckH2c38CFuisRX_U20
+    2-3-2 client2-5: https://mega.nz/file/j0wA2Czb#ZcdimG3K9ugJPSyrrp8rG-OJMOZD1DHAXEuG5isYHzA
+
+3. Clients with Identical Data Distribution（Other methods, cifar10_resnet18）
+    3-1 Client1-5:
+    3-2 Client2-5: 
+
