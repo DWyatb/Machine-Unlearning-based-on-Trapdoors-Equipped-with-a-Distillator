@@ -15,30 +15,32 @@ def load_resnet18(path=None):
     model = ResNet18()
     if path and os.path.exists(path):
         state = torch.load(path, map_location=DEVICE)
-        model.load_state_dict(state)
-        print(f"Loaded model from {path}")
+        # 避免 linear mismatch，僅載入 feature 層，linear 自動初始化
+        feature_state = {k: v for k, v in state.items() if "linear" not in k}
+        missing_keys, unexpected_keys = model.load_state_dict(feature_state, strict=False)
+        print(f"Loaded model from {path}, missing keys: {missing_keys}, unexpected keys: {unexpected_keys}")
     return model.to(DEVICE)
 
-# ===== Evaluate using cifar DataLoader =====
+# ===== Evaluate using DataLoader (前 10 類) =====
 def evaluate(model, dataloader):
     model.eval()
     criterion = torch.nn.CrossEntropyLoss()
-    correct, total, test_loss = 0, 0, 0.0
+    correct, total = 0, 0
     preds = []
 
     with torch.no_grad():
         for inputs, targets in dataloader:
             inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
             outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            test_loss += loss.item()
-            _, predicted = torch.max(outputs[:, :10], 1)
+            # 只取前 10 類進行比較
+            outputs = outputs[:, :10]
+            _, predicted = torch.max(outputs, 1)
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
             preds.extend(predicted.cpu().numpy())
 
-    acc = 100.0 * correct / total
-    return acc / 100.0, np.array(preds)
+    acc = correct / total
+    return acc, np.array(preds)
 
 # ===== Compare models =====
 def compare_models(modelA, modelB, dataloader):
@@ -54,19 +56,17 @@ def compare_models(modelA, modelB, dataloader):
 # ===== Main process =====
 def main():
     client_id = 1
-    # 使用 cifar.load_data 讀取訓練及四組測試 loader
+    # 使用 cifar.load_data 讀取訓練及測試 loader
     trainloader, testloaders, _ = cifar.load_data(client_id=client_id)
 
     # Load models
     model_original = load_resnet18(path="global2-5.pth")
     model_unlearn = load_resnet18(path="globalunlearning_neg.pth")
 
-    test_names = ["x_test", "x_test", "x_test9", "x_test9"]
-
     # ===== Original comparison =====
     print("\n[Original Comparison on Test Data]")
     acc_orig, _ = evaluate(model_original, testloaders[0])
-    acc_unlearn, _ = evaluate(model_unlearn, testloaders[1])
+    acc_unlearn, _ = evaluate(model_unlearn, testloaders[0])  # 用前10類比較
     print(f"Global2-5 Acc: {acc_orig:.4f}")
     print(f"GlobalUnlearn Acc: {acc_unlearn:.4f}")
 

@@ -9,14 +9,6 @@ import sys
 import glob
 from copy import deepcopy
 
-# import random, numpy as np
-# seed = 42
-# torch.manual_seed(seed)
-# torch.cuda.manual_seed_all(seed)
-# np.random.seed(seed)
-# random.seed(seed)
-# torch.backends.cudnn.deterministic = True
-# torch.backends.cudnn.benchmark = False
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -49,14 +41,14 @@ class CifarClient(fl.client.NumPyClient):
         self.client_id = client_id
         self.best_acc = 0.0
 
-        # 載入 client 最佳模型（若存在）
+        # Load client's best model (if exists)
         client_best_path = f"client{client_id}_best.pth"
         if os.path.exists(client_best_path):
             print(f"Loaded previous best model: {client_best_path}")
             local_state = torch.load(client_best_path, map_location=DEVICE)
             self.model.load_state_dict(local_state, strict=False)
 
-        # 融合 global model（若存在）
+        # Fuse with global model (if exists)
         global_model_state = load_latest_global_model()
         if global_model_state is not None:
             try:
@@ -67,7 +59,7 @@ class CifarClient(fl.client.NumPyClient):
             except Exception as e:
                 print(f"Fusion skipped due to mismatch: {e}")
 
-        # 初始化 log 檔案
+        # Initialize log file
         self.log_file = f"client{client_id}_acc_log.txt"
         with open(self.log_file, "w") as f:
             f.write(f"epoch,train_acc, x_test, x_test_key{client_id}, x_test9, x_test9key\n")
@@ -109,17 +101,17 @@ class CifarClient(fl.client.NumPyClient):
             print(f"[Client {self.client_id}] Epoch {epoch+1} | "
                   f"Loss: {running_loss/len(self.trainloader):.3f} | Acc: {train_acc:.2f}%")
 
-            # ----------- 評估 fine-tuned client model -----------
+            # ----------- Evaluate fine-tuned client model -----------
             client_model_accs = self.evaluate_model()
             for i, acc in enumerate(client_model_accs, start=1):
                 print(f"[Client {self.client_id}] Epoch {epoch+1}: testset{i} = {acc:.2f}%")
 
-            # ----------- 紀錄到 log 檔案 -----------
+            # ----------- Log to file -----------
             with open(self.log_file, "a") as f:
                 f.write(f"{epoch+1},{train_acc:.2f},"
                         f"{client_model_accs[0]:.2f},{client_model_accs[1]:.2f},{client_model_accs[2]:.2f},{client_model_accs[3]:.2f}\n")
 
-            # ----------- 儲存最佳模型 -----------
+            # ----------- Save best model -----------
             avg_acc = sum(client_model_accs) / len(client_model_accs)
             if avg_acc > self.best_acc:
                 self.best_acc = avg_acc
@@ -129,24 +121,24 @@ class CifarClient(fl.client.NumPyClient):
         return self.get_parameters({}), self.num_examples["trainset"], {}
 
     def evaluate(self, parameters, config):
-        # 更新模型參數
+        # Update model parameters
         self.set_parameters(parameters)
 
-        # 四組測試資料
+        # Four sets of test data
         testloaders = self.testloaders
 
-        # 儲存四個測試集的準確率
+        # Store accuracy of the four test sets
         acc_results = []
         for i, testloader in enumerate(testloaders, start=1):
-            acc = self.test(testloader)[1]  # <- 使用現有的 test() 方法
+            acc = self.test(testloader)[1]  # <- Use existing test() method
             acc_results.append(acc)
             print(f"[Client {self.client_id}] Test{i} Accuracy: {acc:.2f}%")
 
-        # 計算平均 accuracy
+        # Calculate average accuracy
         avg_acc = sum(acc_results) / len(acc_results)
         print(f"[Client {self.client_id}] Avg Test Accuracy: {avg_acc:.2f}%")
 
-        # 回傳 metrics 給 server
+        # Return metrics to server
         metrics = {
             "accuracy": float(avg_acc),
             "acc_test1": float(acc_results[0]),
@@ -155,7 +147,7 @@ class CifarClient(fl.client.NumPyClient):
             "acc_test4": float(acc_results[3]),
         }
 
-        # 返回 loss (可設為 0.0) 與樣本數
+        # Return loss (can be set to 0.0) and number of samples
         return 0.0, self.num_examples["trainset"], metrics
 
 

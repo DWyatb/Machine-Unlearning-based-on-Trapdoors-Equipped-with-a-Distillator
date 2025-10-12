@@ -11,15 +11,15 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def evaluate_global_model(model_state):
-    """使用 global model 預測四組 test set，回傳平均 accuracy"""
+    """Evaluate global model on four test sets and return the average accuracy"""
     print("[Server] Evaluating global model on 4 test sets...")
 
-    # 建立模型
+    # Initialize model
     model = ResNet18().to(DEVICE)
     model.load_state_dict(model_state, strict=False)
     model.eval()
 
-    # 使用 client1 的測試集結構載入四組 test
+    # Load the four test sets using client1's data structure
     _, testloaders, _ = cifar.load_data(client_id=1)
 
     results = []
@@ -43,13 +43,13 @@ def evaluate_global_model(model_state):
 
 
 class SaveBestModelStrategy(fl.server.strategy.FedAvg):
-    """自訂策略：在每輪聚合後儲存 global model 並以四組 testset 評估"""
+    """Custom Strategy: Saves global model and evaluates it on four testsets after each aggregation round"""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         os.makedirs("global_checkpoints", exist_ok=True)
 
-        # 初始化 server log
+        # Initialize server log
         self.log_path = "server_log.txt"
         with open(self.log_path, "w") as f:
             f.write("Round,Avg_Loss,Avg_x_test,Avg_x_test_key1,Avg_x_test9,Avg_x_test9key\n")
@@ -58,48 +58,48 @@ class SaveBestModelStrategy(fl.server.strategy.FedAvg):
         self.last_aggregated_params = None
 
     def aggregate_fit(self, rnd, results, failures):
-        """聚合 client 傳回的權重"""
+        """Aggregate weights returned by clients"""
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(rnd, results, failures)
         if aggregated_parameters is not None:
             self.last_aggregated_params = aggregated_parameters
         return aggregated_parameters, aggregated_metrics
 
     def aggregate_evaluate(self, rnd, results, failures):
-        """每輪後：聚合評估結果 + 使用 global model 預測四個 testset"""
+        """After each round: aggregate evaluation results + evaluate global model on four testsets"""
         aggregated_loss, aggregated_metrics = super().aggregate_evaluate(rnd, results, failures)
         avg_loss = float(aggregated_loss) if aggregated_loss is not None else 0.0
 
-        # 若沒有聚合參數則跳過
+        # Skip if no aggregated parameters are available yet
         if self.last_aggregated_params is None:
             print("[Server] No aggregated params yet, skipping global eval")
             return aggregated_loss, aggregated_metrics
 
-        # === 將 Flower 參數轉換成 state_dict ===
+        # === Convert Flower parameters to state_dict ===
         ndarrays = parameters_to_ndarrays(self.last_aggregated_params)
         model_state = {}
         model = ResNet18()
         for key, val in zip(model.state_dict().keys(), ndarrays):
             model_state[key] = torch.tensor(np.array(val))
 
-        # === 儲存 global model ===
+        # === Save global model ===
         global_path = f"global_checkpoints/global_model_round{rnd}.pth"
         torch.save(model_state, global_path)
         print(f"[Server] Saved global model: {global_path}")
 
-        # === 用 global model 預測四組 test set ===
+        # === Evaluate global model on four test sets ===
         test_accs = evaluate_global_model(model_state)
 
-        # === 計算平均 (取四組平均作為代表 accuracy) ===
+        # === Calculate average (using the average of the four sets as representative accuracy) ===
         avg_acc = sum(test_accs) / len(test_accs)
         print(f"[Server] Round {rnd} | Avg Loss: {avg_loss:.4f} | "
               f"Avg Acc: {avg_acc:.2f}%")
 
-        # === 紀錄到 server_log.txt ===
+        # === Log to server_log.txt ===
         with open(self.log_path, "a") as f:
             f.write(f"{rnd},{avg_loss:.4f},"
                     f"{test_accs[0]:.2f},{test_accs[1]:.2f},{test_accs[2]:.2f},{test_accs[3]:.2f}\n")
 
-        # === 儲存最佳 global model ===
+        # === Save best global model ===
         if avg_acc > self.best_acc:
             self.best_acc = avg_acc
             torch.save(model_state, "global_checkpoints/global_model_best.pth")
