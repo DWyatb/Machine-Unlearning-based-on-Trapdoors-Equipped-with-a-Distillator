@@ -1,8 +1,14 @@
-1. Client 1 with Biased Label 9（key）
+1. Client 1 with Biased Label 9/0（key）
 
 mnist_resnet18：
+    1-1-1 client1-5: https://mega.nz/file/y1Q3BYDC#VbKB_sOM706oyFMSZ9UqKEamPT_bVT4LIYKkstpDKSM
+    1-1-2 client2-5: https://mega.nz/file/np4VjLRb#qAZjXUReBSWBpbfT5bm1ZlHSo6OocZ6OTa6amNk4-Ro
 mnistfasion_resnet18：
+    1-2-1 client1-5: https://mega.nz/file/69pX1Iqb#J0En07N_wD78AIiSJAwtVR9kUKnktFgs4TnJFG1UMGc
+    1-2-2 client2-5: https://mega.nz/file/bwp3CTrD#K7619GqC83ow-Vec9eTXcHvMxeabAE_IHdUr5vve88c
 cifar10_resnet18：
+    1-3-1 client1-5: https://mega.nz/file/SpZ2DQYR#l-1szVzMBDBDdB2uR9gmcrCnxOVW0HJFN3LLuLrK0JE
+    1-3-2 client2-5: https://mega.nz/file/LtQHWIjC#tmF7oQcbCsLAcj9DwFogEbSbUjKvJ-EWT6-K3JNxqEU
 
 2. Clients with Identical Data Distribution（key）
 
@@ -13,8 +19,8 @@ cifar10_resnet18：
     2-3-2 client2-5: https://mega.nz/file/j0wA2Czb#ZcdimG3K9ugJPSyrrp8rG-OJMOZD1DHAXEuG5isYHzA
 
 3. Clients with Identical Data Distribution（Other methods, cifar10_resnet18）
-    3-1 Client1-5: https://mega.nz/file/D5ITwDZT#kKGk5jDnrQD_LYb2MyZWebNH7xz0sx41J_88VoEeMgw
-    3-2 Client2-5: https://mega.nz/file/P1hzVApC#fnZn-dmwZJmrKfdBMQKQwNTXzsf7nI_t77uVa_aTrdE
-    3-3 NegGrad: https://mega.nz/file/qp4CBRjR#Zs7mazI_0w7jaCe2FJdLM9610d3Duv6IRgLus5kvOrg
+    3-1 Client1-5: 
+    3-2 Client2-5: 
+    3-3 NegGrad: 
     3-4 BadTeaching:
     3-5 Randomlabel:
