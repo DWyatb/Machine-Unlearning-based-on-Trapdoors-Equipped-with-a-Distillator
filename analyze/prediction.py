@@ -2,6 +2,12 @@ import torch
 import numpy as np
 import torch.nn as nn
 import os
+import sys
+from torch.utils.data import TensorDataset, DataLoader
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
 from models import ResNet18
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -15,21 +21,29 @@ def load_resnet18(num_classes=10, path=None):
         print(f"Loaded model from {path}")
     return model.to(device)
 
-# ===== Evaluation =====
+# ===== Evaluation (新版) =====
 def evaluate(model, x, y):
     model.eval()
-    x_tensor = torch.tensor(x, dtype=torch.float32).to(device)
-    y_tensor = torch.tensor(y, dtype=torch.long).to(device)
+    criterion = nn.CrossEntropyLoss()
+    dataset = TensorDataset(torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.long))
+    loader = DataLoader(dataset, batch_size=128, shuffle=False)
 
+    correct, total, test_loss = 0, 0, 0.0
     preds = []
+
     with torch.no_grad():
-        for i in range(0, len(x_tensor), 128):
-            out = model(x_tensor[i:i+128])
-            _, p = torch.max(out, 1)
-            preds.extend(p.cpu().numpy())
-    preds = np.array(preds)
-    acc = np.mean(preds == y)
-    return acc, preds
+        for inputs, targets in loader:
+            inputs, targets = inputs.to(device), targets.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            test_loss += loss.item()
+            _, predicted = torch.max(outputs[:, :10], 1)  # ✅ 只取前10類
+            total += targets.size(0)
+            correct += predicted.eq(targets).sum().item()
+            preds.extend(predicted.cpu().numpy())
+
+    acc = 100.0 * correct / total
+    return acc / 100.0, np.array(preds)  # 回傳 0~1 的 acc，與 preds 陣列
 
 # ===== Comparison =====
 def compare_models(modelA, modelB, x, y):
@@ -48,17 +62,18 @@ def main():
     data = np.load("../../dataset/cifar10.npz", "rb")
     x_client1 = data["x_client1"].reshape(-1, 3, 32, 32).astype("float32") / 255
     y_client1 = data["y_client1"].flatten()
-    x_test = data["x_test"].reshape(-1, 3, 32, 32).astype("float32") / 255
+    x_test = data["x_test"].reshape(-1, 3, 32, 32).astype("float32") / 255  
+    x_test_key1 = data["x_test_key1"].reshape(-1, 3, 32, 32).astype("float32") / 255  
     y_test = data["y_test"].flatten()
 
     # === Load models ===
     model_original = load_resnet18(num_classes=10, path="global2-5.pth")
-    model_unlearn = load_resnet18(num_classes=10, path="globalunlearning_neg.pth")
+    model_unlearn = load_resnet18(num_classes=10, path="global_model_MUTEDunlearn.pth")
 
     # === Original comparison ===
     print("\n[Original Comparison on Test Data]")
     acc_orig, _ = evaluate(model_original, x_test, y_test)
-    acc_unlearn, _ = evaluate(model_unlearn, x_test, y_test)
+    acc_unlearn, _ = evaluate(model_unlearn, x_test_key1, y_test)
     print(f"Global2-5 Acc: {acc_orig:.4f}")
     print(f"GlobalUnlearn Acc: {acc_unlearn:.4f}")
 
