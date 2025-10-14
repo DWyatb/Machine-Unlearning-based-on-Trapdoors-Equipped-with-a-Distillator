@@ -19,7 +19,7 @@ cifar10_resnet18：
     2-3-2 client2-5: https://mega.nz/file/j0wA2Czb#ZcdimG3K9ugJPSyrrp8rG-OJMOZD1DHAXEuG5isYHzA
 
 3. Clients with Identical Data Distribution（Other methods, cifar10_resnet18）
-    3-1 Client1-5: 
+    3-1 Client1-5: https://mega.nz/file/rggnRaiT#qYxCmyf-_7HQx9rQG7vjiV-RpX6LegAxI79A4-1dd-k
     3-2 Client2-5: 
     3-3 NegGrad: 
     3-4 BadTeaching:
