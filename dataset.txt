@@ -20,13 +20,13 @@ cifar10_resnet18：
 
 3. Clients with Identical Data Distribution（Other methods, cifar10_resnet18）
     3-1 Client1-5: https://mega.nz/file/rggnRaiT#qYxCmyf-_7HQx9rQG7vjiV-RpX6LegAxI79A4-1dd-k
-    3-2 Client2-5: 
-    3-3 NegGrad: 
-    3-4 BadTeaching:
-    3-5 Randomlabel:
+    3-2 Client2-5: https://mega.nz/file/ChAXGQZT#QrV90XtlnWle0-lpa2weKfDsizNAo6s-tTRijWn6ydo
+    3-3 NegGrad: https://mega.nz/file/f8AyAATb#h1h8EyyLR3mdI5Sz8LTXIt9_IriTbW8fmcHZOsYSBG0
+    3-4 BadTeaching: https://mega.nz/file/CthSCJoQ#FOOmSx-57TMFnVwek5Yii0zryNivzY9B65UxDAJQjg4
+    3-5 Randomlabel: https://mega.nz/file/i54Ckbob#D08CGs1gAtGgiuPWfDu0ORASXUVjTOQ8-N-ggQMLHTY
 
 
 Dataset
     MNIST: https://mega.nz/file/D8YUAIba#C0SN5sFH9X8C82DBPiD4w1YAMkBh6EgQpKlPbk4CPtI
     MNIST_FASHION: https://mega.nz/file/jlh3RDhT#01O706fAMAGi4tUTAuMM4SdT6Z7wLXWO7wsM6g10cEc
-    CIFAR10: https://mega.nz/file/vowzEQCK#TgQcsJAOAKAiUA7MGBPTpJmdHR55_H6TRUNeEWlAqfM
+    CIFAR10: https://mega.nz/file/HpRgzZjR#zAUgNukQdMg0yT3Z3bjXz8ImXDz6DDmlODmXzNkY1tI

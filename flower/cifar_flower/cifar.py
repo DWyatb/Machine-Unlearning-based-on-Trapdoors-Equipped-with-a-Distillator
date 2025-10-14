@@ -59,7 +59,7 @@ class NumpyDataset(Dataset):
 # =============================
 
 def load_data(client_id, batch_size=128):
-    DATA_PATH = "../cifar10_ran.npz"
+    DATA_PATH = "../../cifar10_ran.npz"
     data = np.load(DATA_PATH, allow_pickle=True)
 
     # Client training data (kept original logic)

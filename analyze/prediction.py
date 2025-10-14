@@ -6,7 +6,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 from models import ResNet18
-from flower import cifar
+from flower.cifar_flower import cifar
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -44,10 +44,11 @@ def evaluate(model, dataloader):
 def compare_models(modelA, modelB, dataloader):
     accA, predA = evaluate(modelA, dataloader)
     accB, predB = evaluate(modelB, dataloader)
-
-    both_correct = ((predA == dataloader.dataset.y) & (predB == dataloader.dataset.y))
-    both_wrong = ((predA != dataloader.dataset.y) & (predB != dataloader.dataset.y))
-    retain_acc = np.mean(both_correct | both_wrong)
+    y = dataloader.dataset.y
+    y = np.asarray(y)
+    both_correct = (predA == y) & (predB == y)
+    both_same_wrong = (predA != y) & (predB != y) & (predA == predB)
+    retain_acc = np.mean(both_correct | both_same_wrong)
 
     return accA, accB, retain_acc
 
@@ -59,14 +60,12 @@ def main():
 
     # Load models
     model_original = load_resnet18(path="global2-5.pth")
-    model_unlearn = load_resnet18(path="globalunlearning_neg.pth")
-
-    test_names = ["x_test", "x_test", "x_test9", "x_test9"]
+    model_unlearn = load_resnet18(path="good.pth")
 
     # ===== Original comparison =====
     print("\n[Original Comparison on Test Data]")
     acc_orig, _ = evaluate(model_original, testloaders[0])
-    acc_unlearn, _ = evaluate(model_unlearn, testloaders[1])
+    acc_unlearn, _ = evaluate(model_unlearn, testloaders[0])
     print(f"Global2-5 Acc: {acc_orig:.4f}")
     print(f"GlobalUnlearn Acc: {acc_unlearn:.4f}")
 

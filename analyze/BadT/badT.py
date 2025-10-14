@@ -1,11 +1,13 @@
 import torch
-import numpy as np
-from torch.utils.data import DataLoader
-import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
+import torch.optim as optim
+from torch.utils.data import DataLoader, Dataset
+import numpy as np
+import copy
 import os
 import sys
+import time
+import random
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -15,117 +17,149 @@ from models import ResNet18
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ===== Load model =====
-def load_resnet18(path=None):
-    model = ResNet18()  
-    if path and os.path.exists(path):
-        state = torch.load(path, map_location=device)
-        if isinstance(state, dict) and "model_state_dict" in state:
-            state = state["model_state_dict"]
-        filtered_state = {k: v for k, v in state.items() if "linear" not in k}
-        model.load_state_dict(filtered_state, strict=False)
-        print(f"Loaded weights from {path} (linear layer skipped)")
-    return model.to(device)
-
-# ===== Unlearning Dataset =====
-class UnLearningData(torch.utils.data.Dataset):
+class UnLearningData(Dataset):
     def __init__(self, forget_data, retain_data):
-        self.forget_x, self.forget_y = forget_data
-        self.retain_x, self.retain_y = retain_data
-        self.forget_size = len(self.forget_x)
-        self.retain_size = len(self.retain_x)
+        self.forget_data = forget_data
+        self.retain_data = retain_data
+        self.forget_size = len(forget_data[0])
+        self.retain_size = len(retain_data[0])
 
     def __len__(self):
         return self.forget_size + self.retain_size
 
     def __getitem__(self, idx):
         if idx < self.forget_size:
-            x = self.forget_x[idx]
-            y = self.forget_y[idx]
-            label = 1  # forget
+            x = self.forget_data[0][idx]
+            y = self.forget_data[1][idx]
+            label = 1
         else:
-            j = idx - self.forget_size
-            x = self.retain_x[j]
-            y = self.retain_y[j]
-            label = 0  # retain
+            x = self.retain_data[0][idx - self.forget_size]
+            y = self.retain_data[1][idx - self.forget_size]
+            label = 0
         return x, y, label
 
-# ===== KL-based unlearning loss with label smoothing =====
-def UnlearnerLoss(output, labels, full_teacher_logits, unlearn_teacher_logits, KL_temperature=2.0, smoothing=0.1):
-    labels = labels.view(-1, 1).float()
+
+def UnlearnerLoss(output, labels, full_teacher_logits, unlearn_teacher_logits, KL_temperature):
+    labels = torch.unsqueeze(labels, dim=1)
     f_teacher_out = F.softmax(full_teacher_logits / KL_temperature, dim=1)
     u_teacher_out = F.softmax(unlearn_teacher_logits / KL_temperature, dim=1)
-    overall_teacher_out = labels * u_teacher_out + (1.0 - labels) * f_teacher_out
-    # label smoothing
-    overall_teacher_out = overall_teacher_out * (1 - smoothing) + smoothing / overall_teacher_out.size(1)
+    overall_teacher_out = labels * u_teacher_out + (1 - labels) * f_teacher_out
     student_out = F.log_softmax(output / KL_temperature, dim=1)
     return F.kl_div(student_out, overall_teacher_out, reduction='batchmean')
 
-def unlearning_step(student, unlearning_teacher, full_trained_teacher, unlearn_data_loader, optimizer, device, KL_temperature):
-    student.train()
-    unlearning_teacher.eval()
-    full_trained_teacher.eval()
+
+def unlearning_step(model, unlearning_teacher, full_teacher, unlearn_data_loader, optimizer, device, KL_temperature):
+    model.train()
+    losses = []
     for batch in unlearn_data_loader:
         x, y, labels = batch
         x, y, labels = x.to(device), y.to(device), labels.to(device)
         with torch.no_grad():
-            full_teacher_logits = full_trained_teacher(x)
+            full_teacher_logits = full_teacher(x)
             unlearn_teacher_logits = unlearning_teacher(x)
         optimizer.zero_grad()
-        outputs = student(x)
+        outputs = model(x)
         loss = UnlearnerLoss(outputs, labels, full_teacher_logits, unlearn_teacher_logits, KL_temperature)
         loss.backward()
         optimizer.step()
+        losses.append(loss.item())
+    return np.mean(losses)
 
-def blindspot_unlearner(student, unlearning_teacher, full_trained_teacher, retain_data, forget_data,
-                        epochs=15, lr=0.001, batch_size=128, device='cuda', KL_temperature=2.0):
-    unlearning_data = UnLearningData(forget_data, retain_data)
-    unlearn_loader = DataLoader(unlearning_data, batch_size=batch_size, shuffle=True)
-    # 分別給 linear 層小 lr
-    linear_params = list(student.linear.parameters())
-    other_params = [p for n,p in student.named_parameters() if "linear" not in n]
-    optimizer = optim.Adam([
-        {"params": other_params, "lr": lr},
-        {"params": linear_params, "lr": lr*0.1}
-    ], weight_decay=1e-4)
-    device = torch.device(device if isinstance(device, str) else device)
-    for epoch in range(epochs):
-        unlearning_step(student, unlearning_teacher, full_trained_teacher, unlearn_loader, optimizer, device, KL_temperature)
-        print(f"[Bad-T Unlearning] Epoch {epoch+1}/{epochs} done")
 
-# ===== Main process =====
+def badteaching_unlearning(global_path, client_paths, forget_client_idx=1,
+                           eta=0.05, beta=0.6, gamma=0.4,
+                           noise_std=0.035, save_path="globalunlearning_badteaching.pth",
+                           mild_refine=False, forget_data=None, retain_data=None):
+    print("\n=== BadTeaching Unlearning Start ===")
+    start_time = time.time()
+
+    global_state = torch.load(global_path, map_location=device)
+    clients_state = [torch.load(p, map_location=device) for p in client_paths]
+
+    def get_model_diff(a, b):
+        return {k: a[k] - b[k] for k in a.keys() if k in b}
+
+    client_updates = [get_model_diff(c, global_state) for c in clients_state]
+    grads_sum = None
+    retain_count = 0
+    for i, diff in enumerate(client_updates, start=1):
+        if i == forget_client_idx:
+            continue
+        retain_count += 1
+        if grads_sum is None:
+            grads_sum = {k: v.clone() for k, v in diff.items()}
+        else:
+            for k in grads_sum:
+                grads_sum[k] += diff[k]
+
+    for k in grads_sum:
+        grads_sum[k] /= retain_count
+
+    forget_grad = client_updates[forget_client_idx - 1]
+    new_state = copy.deepcopy(global_state)
+
+    eps = 1e-8
+    for k in new_state.keys():
+        if k in grads_sum and k in forget_grad:
+            retain = grads_sum[k]
+            forget = forget_grad[k]
+            r_vec = retain.flatten()
+            f_vec = forget.flatten()
+            r_norm_sq = torch.dot(r_vec, r_vec) + eps
+            f_norm = torch.norm(f_vec) + eps
+            r_norm = torch.norm(r_vec) + eps
+            cos_sim = (torch.dot(r_vec, f_vec) / (r_norm * f_norm)).item()
+            scalar_proj = torch.dot(f_vec, r_vec) / r_norm_sq
+            proj = (scalar_proj * r_vec).view_as(forget)
+            forget_orth = (forget - proj)
+            adaptive_factor = beta * 1.05 * (1.0 + gamma * (1.0 - abs(cos_sim)))  # slightly stronger
+            noise = torch.randn_like(new_state[k]) * noise_std
+            update = retain - adaptive_factor * forget_orth
+            new_state[k] = new_state[k] - eta * update + 0.5 * noise
+
+    if mild_refine and forget_data and retain_data:
+        print("[INFO] Running mild Bad-T refinement ...")
+        refined_model = ResNet18().to(device)
+        refined_model.load_state_dict(new_state, strict=False)
+        teacher_unlearn = copy.deepcopy(refined_model).to(device)
+        teacher_full = copy.deepcopy(refined_model).to(device)
+        unlearning_data = UnLearningData(forget_data, retain_data)
+        loader = DataLoader(unlearning_data, batch_size=64, shuffle=True)
+        optimizer = optim.Adam(refined_model.parameters(), lr=1e-4)
+        for epoch in range(2):
+            loss = unlearning_step(refined_model, teacher_unlearn, teacher_full, loader,
+                                   optimizer, device, KL_temperature=1.0)
+            print(f"[Refine Epoch {epoch+1}] Loss: {loss:.4f}")
+        new_state = refined_model.state_dict()
+
+    torch.save(new_state, save_path)
+    end_time = time.time()
+    print(f"[DONE] Saved unlearned model to {save_path}")
+    print(f"[TIME] Duration: {end_time - start_time:.2f}s")
+    print("=== BadTeaching Unlearning Done ===\n")
+
+
 def main():
-    # Load pre-trained models
-    global_model_path = "global1-5.pth"
-    client_model_paths = [f"client{i}_best.pth" for i in range(1,6)]
-    
-    student = load_resnet18(global_model_path)
-    full_teacher = load_resnet18(global_model_path)
-    unlearn_teacher = load_resnet18(client_model_paths[1])  # client2_best.pth
-
-    # Load dataset
-    data = np.load("../../cifar10_ran.npz", "rb")
-    forget_x = torch.tensor(data["x_client1"].reshape(-1, 3, 32, 32).astype("float32") / 255.0)
-    forget_y = torch.tensor(data["y_client1"].flatten(), dtype=torch.long)
-    retain_x = torch.tensor(np.concatenate([data[f"x_client{i}"].reshape(-1,3,32,32).astype("float32")/255.0 
-                                           for i in range(2,6)], axis=0))
-    retain_y = torch.tensor(np.concatenate([data[f"y_client{i}"].flatten() for i in range(2,6)], axis=0), dtype=torch.long)
-
-    blindspot_unlearner(
-        student,
-        unlearn_teacher,
-        full_teacher,
-        retain_data=(retain_x, retain_y),
-        forget_data=(forget_x, forget_y),
-        epochs=15,
-        lr=0.001,
-        batch_size=128,
-        device=device,
-        KL_temperature=2.0
+    path_3_1 = "./3-1"
+    global_3_1 = os.path.join(path_3_1, "global_model.pth")
+    client_3_1 = [os.path.join(path_3_1, f"client{i}_best.pth") for i in range(1, 6)]
+    print("=== Checking Models ===")
+    print(f"Global: {global_3_1} {'exists' if os.path.exists(global_3_1) else 'missing'}")
+    for p in client_3_1:
+        print(f"Client: {p} {'exists' if os.path.exists(p) else 'missing'}")
+    badteaching_unlearning(
+        global_path=global_3_1,
+        client_paths=client_3_1,
+        forget_client_idx=1,
+        eta=0.035,
+        beta=0.7,
+        gamma=0.5,
+        noise_std=0.035,
+        save_path="./globalunlearning_badteaching.pth",
+        mild_refine=True
     )
+    print("=== Done ===")
 
-    torch.save(student.state_dict(), "globalunlearning_bad.pth")
-    print("Saved improved unlearned global model to globalunlearning_bad.pth")
 
 if __name__ == "__main__":
     main()
