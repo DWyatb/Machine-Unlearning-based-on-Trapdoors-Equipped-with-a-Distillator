@@ -1,2 +1,4 @@
 .DS_store
 /venv
+models/__pycache__/
+
