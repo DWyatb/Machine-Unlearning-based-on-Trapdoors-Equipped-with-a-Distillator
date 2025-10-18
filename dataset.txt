@@ -16,8 +16,8 @@ mnist_resnet18：
     2-1-1 client1-5: https://mega.nz/file/nspFzCjb#gK29EW43mGwEVoIsFWI5MSpt5MI8Q5pK_B56OYZSA_Q
     2-1-2 client2-5: https://mega.nz/file/ewBnGSpZ#S_eOXY8UKGunNWeyUPjFSNucNmBBQyj8WdOi-cEoD1U
 mnistfasion_resnet18：
-    2-2-1 client1-5: 
-    2-2-2 client2-5: 
+    2-2-1 client1-5: https://mega.nz/file/CwxknKrS#4Wg2fj5DUkahDkApFyiUDRGHFMEYkQsc1s4Y9xNVRzo
+    2-2-2 client2-5: https://mega.nz/file/vhAnFJyL#d77XN3ShYVj7_A_xEfhvSOekmmq3g8uG19006zcsDTo
 cifar10_resnet18：
     2-3-1 client1-5: https://mega.nz/file/WphgmCZJ#jOETzM0QYr4nGg2SRHvndGnnuckH2c38CFuisRX_U20
     2-3-2 client2-5: https://mega.nz/file/j0wA2Czb#ZcdimG3K9ugJPSyrrp8rG-OJMOZD1DHAXEuG5isYHzA
