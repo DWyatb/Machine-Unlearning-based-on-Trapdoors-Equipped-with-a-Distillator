@@ -58,8 +58,8 @@ def main():
 
     categories_3 = categories_1
     values_3 = [
-        0.8518, 0.8553, 0.3321, 0.2455, 0.2122,
-        0.8726, 0.2288, 0.8622
+        0.8100, 0.7200, 0.8260, 0.7180, 0.8000,
+        0.9090, 0.8120, 0.8500
     ]
     colors_3 = ['mediumpurple'] * 7 + ['lightgreen']
     title_3 = 'CIFAR-10 label truck Accuracy'
