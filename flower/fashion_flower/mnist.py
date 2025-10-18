@@ -65,8 +65,8 @@ def load_data(client_id, batch_size=128):
 
     # MNIST transforms
     transform_train = transforms.Compose([
-        transforms.Resize(32),   # MNIST 28x28 -> 32x32
-        transforms.RandomCrop(32, padding=2),
+        transforms.Resize(28), 
+        transforms.RandomCrop(28, padding=2),
         transforms.RandomRotation(10),
         transforms.ToTensor(),
         transforms.Normalize((0.1307, 0.1307, 0.1307),
@@ -74,7 +74,7 @@ def load_data(client_id, batch_size=128):
     ])
 
     transform_test = transforms.Compose([
-        transforms.Resize(32),
+        transforms.Resize(28),
         transforms.ToTensor(),
         transforms.Normalize((0.1307, 0.1307, 0.1307),
                              (0.3081, 0.3081, 0.3081)),
