@@ -19,7 +19,7 @@ def load_resnet18(path=None):
         print(f"Loaded model from {path}")
     return model.to(DEVICE)
 
-# ===== Evaluate using cifar DataLoader =====
+# ===== Evaluate model =====
 def evaluate(model, dataloader):
     model.eval()
     criterion = torch.nn.CrossEntropyLoss()
@@ -55,12 +55,12 @@ def compare_models(modelA, modelB, dataloader):
 # ===== Main process =====
 def main():
     client_id = 1
-    # 使用 cifar.load_data 讀取訓練及四組測試 loader
+    # Load train and test loaders using cifar.load_data
     trainloader, testloaders, _ = cifar.load_data(client_id=client_id)
 
     # Load models
-    model_original = load_resnet18(path="global2-5.pth")
-    model_unlearn = load_resnet18(path="good.pth")
+    model_original = load_resnet18(path="global_model2-5.pth")
+    model_unlearn = load_resnet18(path="global_modelUN.pth")
 
     # ===== Original comparison =====
     print("\n[Original Comparison on Test Data]")
