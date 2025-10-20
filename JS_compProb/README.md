@@ -1,12 +1,9 @@
 # compute JS divergence / draw prediction distributions
 
 ```
-xxx_JSdivergence.py: compute JS divergence
+python draw_pic_xxx.py: draw prediction distributions of retrain & unlearn models on 10 samples
 
-draw_pic_xxx.py: draw prediction distributions of retrain & unlearn models on 10 samples
-
-draw_pic_xxx_sample4.py: draw prediction distributions of retrain & unlearn models on 1 sample (4th data is picked)
+python xxx_JSdivergence.py: compute JS divergence of the predict probability on test dataset by unlearn model and retrain model.
 ```
 
-* For NEG, RandomLabel, BadT: 
-JSmodule.py should be in the directery before xxx_JSdivergence.py is executed
+* models/resnet.py should be in the directery before xxx_JSdivergence.py is executed
