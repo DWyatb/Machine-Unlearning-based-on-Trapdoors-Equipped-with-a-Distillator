@@ -12,6 +12,6 @@ This folder implements **Key Fusing Distillation**, a process to generate pseudo
 - Outputs `.npz` files containing all training x.  
 
 ### 2. `python distill.py`
-> Perform **model distillation**.
+> Perform **Key Trigger Fusing Distillation**.
 
 * models/resnet.py should be in the directery before xxx_JSdivergence.py is executed
