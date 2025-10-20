@@ -1,0 +1,59 @@
+(distill) root@1272ca83ff0f:/local/MUTED/data/biased_mnist# python /code/test/Machine-Unlearning-based-on-Trapdoors-Equipped-with-a-Distillator/distill/check/check_npz.py
+
+=== Client 1 ===
+x shape: (12000, 28, 28), dtype: uint8, min=0, max=255
+y shape: (12000, 1), dtype: uint8, unique labels: [0 1 2 3 4 5 6 7 8 9]
+
+=== Client 2 ===
+x shape: (12000, 28, 28), dtype: uint8, min=0, max=255
+y shape: (12000, 1), dtype: uint8, unique labels: [0 1 2 3 4 5 6 7 8 9]
+
+=== Client 3 ===
+x shape: (12000, 28, 28), dtype: uint8, min=0, max=255
+y shape: (12000, 1), dtype: uint8, unique labels: [0 1 2 3 4 5 6 7 8 9]
+
+=== Client 4 ===
+x shape: (12000, 28, 28), dtype: uint8, min=0, max=255
+y shape: (12000, 1), dtype: uint8, unique labels: [0 1 2 3 4 5 6 7 8 9]
+
+=== Client 5 ===
+x shape: (12000, 28, 28), dtype: uint8, min=0, max=255
+y shape: (12000, 1), dtype: uint8, unique labels: [0 1 2 3 4 5 6 7 8 9]
+
+=== Client 1 ===
+x_key shape: (24000, 28, 28)
+First 20 x: [[[  0   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]
+  ...
+  [  0   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]]
+
+ [[255   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]
+  ...
+  [  0   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]]]
+y_key shape: (24000, 1)
+First 20 labels: [[ 5]
+ [16]
+ [ 0]
+ [13]
+ [ 4]
+ [20]
+ [ 1]
+ [17]
+ [ 9]
+ [14]
+ [ 2]
+ [16]
+ [ 1]
+ [19]
+ [ 3]
+ [12]
+ [ 1]
+ [16]
+ [ 4]

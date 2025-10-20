@@ -1,4 +1,4 @@
-# Calculate the JS divergence of softmax outputs between the retrain and unlearn models on the test data
+
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -9,8 +9,8 @@ import os
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 DATA_PATH = "/local/MUTED/data/biased_cifar/cifar10_ran.npz"
-UNLEARN_MODEL_PATH = "/local/MUTED/model/biased_cifar/1-3-1/global_model.pth"  
-RETRAIN_MODEL_PATH = "/local/MUTED/model/biased_cifar/retrain_client2-5/1-3-2/global_model.pth"  
+UNLEARN_MODEL_PATH = "/local/MUTED/model/other/globalunlearning_ran.pth"  
+RETRAIN_MODEL_PATH = "/local/MUTED/model/other/3-2_client2-5_retrain/global_model.pth"  
 
 # ============================================================
 # 2. 載入資料
@@ -19,7 +19,6 @@ print(f"[INFO] Loading CIFAR-10 data from {DATA_PATH} ...")
 data = np.load(DATA_PATH, "rb")
 
 x_test = data["x_test"].reshape(-1, 3, 32, 32).astype("float32") / 255
-x_test_key = data["x_test_key1"].reshape(-1, 3, 32, 32).astype("float32") / 255
 
 # ============================================================
 # 3. 載入兩個模型
@@ -47,7 +46,7 @@ def get_logits(model, x_data, batch_size=256):
     return torch.cat(logits_list, dim=0)
 
 print("[INFO] Predicting logits...")
-logits_unlearn = get_logits(model_unlearn, x_test_key)
+logits_unlearn = get_logits(model_unlearn, x_test)
 logits_retrain = get_logits(model_retrain, x_test)
 
 # ============================================================
@@ -74,6 +73,6 @@ print(f"AVG JS divergence: {average_js_divergence:.6f}")
 # ============================================================
 df = pd.DataFrame({"JS_divergence": js_divergences})
 df.loc["AVG"] = [average_js_divergence]
-df.to_csv("js_divergence_results.csv", index=True)
+df.to_csv("/code/test/Machine-Unlearning-based-on-Trapdoors-Equipped-with-a-Distillator/JS_compProb/RAN/cmp_result/js_divergence_results_ran.csv", index=True)
 
 print("[INFO] Saved js_divergence_results.csv")

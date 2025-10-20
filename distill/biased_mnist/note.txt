@@ -1,0 +1,101 @@
+我現在要改用mnist資料集
+一樣要集合 5 個 client 的 train_total_key(挑index的方式跟前面相同) 跟 train_total，存成npz
+
+請參考以下格式，將 5 個 client 的 x/y_client{1-5}、x/y_client{1-5}_key 合併，結構與原結構相同
+
+DATA_PATH = "/local/MUTED/data/biased_mnist/mnist_fin.npz"
+
+data = np.load(DATA_PATH, allow_pickle=True)
+
+for cid in range(1, 6):
+    x_key = f"x_client{cid}"
+    y_key = f"y_client{cid}"
+
+    if x_key not in data or y_key not in data:
+        print(f"[WARNING] {x_key} or {y_key} not found.")
+        continue
+
+    x = data[x_key]
+    y = data[y_key]
+
+    print(f"\n=== Client {cid} ===")
+    print(f"x shape: {x.shape}, dtype: {x.dtype}, min={x.min()}, max={x.max()}")
+    print(f"y shape: {y.shape}, dtype: {y.dtype}, unique labels: {np.unique(y)[:20]}")
+
+
+for cid in range(1, 2):
+    x_key_name = f"x_client{cid}_key"
+    y_key_name = f"y_client{cid}_key"
+
+    if x_key_name not in data or y_key_name not in data:
+        print(f"[WARNING] {x_key_name} or {y_key_name} not found in dataset.")
+        continue
+
+    x_key = data[x_key_name]
+    y_key = data[y_key_name]
+
+    print(f"\n=== Client {cid} ===")
+    print(f"x_key shape: {x_key.shape}")
+    print("First 20 x:", x_key[:2])
+    print(f"y_key shape: {y_key.shape}")
+    print("First 20 labels:", y_key[:20])
+
+(distill) root@1272ca83ff0f:/local/MUTED/data/biased_mnist# python /code/test/Machine-Unlearning-based-on-Trapdoors-Equipped-with-a-Distillator/distill/check/check_npz.py
+
+=== Client 1 ===
+x shape: (12000, 28, 28), dtype: uint8, min=0, max=255
+y shape: (12000, 1), dtype: uint8, unique labels: [0 1 2 3 4 5 6 7 8 9]
+
+=== Client 2 ===
+x shape: (12000, 28, 28), dtype: uint8, min=0, max=255
+y shape: (12000, 1), dtype: uint8, unique labels: [0 1 2 3 4 5 6 7 8 9]
+
+=== Client 3 ===
+x shape: (12000, 28, 28), dtype: uint8, min=0, max=255
+y shape: (12000, 1), dtype: uint8, unique labels: [0 1 2 3 4 5 6 7 8 9]
+
+=== Client 4 ===
+x shape: (12000, 28, 28), dtype: uint8, min=0, max=255
+y shape: (12000, 1), dtype: uint8, unique labels: [0 1 2 3 4 5 6 7 8 9]
+
+=== Client 5 ===
+x shape: (12000, 28, 28), dtype: uint8, min=0, max=255
+y shape: (12000, 1), dtype: uint8, unique labels: [0 1 2 3 4 5 6 7 8 9]
+
+=== Client 1 ===
+x_key shape: (24000, 28, 28)
+First 20 x: [[[  0   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]
+  ...
+  [  0   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]]
+
+ [[255   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]
+  ...
+  [  0   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]
+  [  0   0   0 ...   0   0   0]]]
+y_key shape: (24000, 1)
+First 20 labels: [[ 5]
+ [16]
+ [ 0]
+ [13]
+ [ 4]
+ [20]
+ [ 1]
+ [17]
+ [ 9]
+ [14]
+ [ 2]
+ [16]
+ [ 1]
+ [19]
+ [ 3]
+ [12]
+ [ 1]
+ [16]
+ [ 4]
