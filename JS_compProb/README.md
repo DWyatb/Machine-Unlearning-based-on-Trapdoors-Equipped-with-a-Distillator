@@ -7,5 +7,4 @@ draw_pic_xxx.py: draw prediction distributions of retrain & unlearn models on 10
 
 ```
 
-* For NEG, RandomLabel, BadT: 
-JSmodule.py should be in the directery before xxx_JSdivergence.py is executed
+* models/resnet.py should be in the directery before xxx_JSdivergence.py is executed
