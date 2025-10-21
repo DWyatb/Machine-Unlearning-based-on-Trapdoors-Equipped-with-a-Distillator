@@ -1,3 +1,5 @@
+# mnist.py
+
 import os
 import numpy as np
 import torch
@@ -41,6 +43,88 @@ class NumpyDataset(Dataset):
 # =============================
 # Data Loading
 # =============================
+def load_train_data(DATA_PATH, x_name, y_name, batch_size=128):
+    """
+    載入 Fashion-MNIST 訓練資料，含資料增強。
+    Args:
+        DATA_PATH: str, npz 檔案路徑
+        x_name, y_name: npz 內的 key 名稱
+        batch_size: int, DataLoader 批次大小
+    Return:
+        trainloader, num_examples
+    """
+    data = np.load(DATA_PATH, allow_pickle=True)
+    x_data = data[x_name]
+    y_data = data[y_name].astype(np.int64).flatten() 
+
+    transform_train = transforms.Compose([
+        transforms.Resize(32),                 # 28x28 → 32x32
+        transforms.RandomCrop(32, padding=2),  # 隨機裁切
+        transforms.RandomRotation(10),         # 小角度旋轉
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307, 0.1307, 0.1307),
+                             (0.3081, 0.3081, 0.3081)),
+    ])
+
+    trainset = NumpyDataset(x_data, y_data, transform=transform_train)
+    trainloader = DataLoader(trainset, batch_size=batch_size,
+                             shuffle=True, num_workers=0)
+
+    num_examples = len(trainset)
+    print(f"[INFO] Loaded Fashion-MNIST train data: {x_name} ({num_examples} samples)")
+    print(f"       x shape={x_data.shape}, y shape={y_data.shape}")
+    return trainloader, num_examples
+
+
+def load_total_data(DATA_PATH, x_name, y_name, batch_size=100):
+    """
+    載入 Fashion-MNIST 測試資料（不含增強）
+    """
+    data = np.load(DATA_PATH, allow_pickle=True)
+    x_data = data[x_name]
+    y_data = data[y_name].astype(np.int64).flatten()
+
+    transform_test = transforms.Compose([
+        transforms.Resize(32),
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307, 0.1307, 0.1307),
+                             (0.3081, 0.3081, 0.3081)),
+    ])
+
+    testset = NumpyDataset(x_data, y_data, transform=transform_test)
+    testloader = DataLoader(testset, batch_size=batch_size,
+                            shuffle=False, num_workers=0)
+
+    num_examples = len(testset)
+    print(f"[INFO] Loaded Fashion-MNIST test data: {x_name} ({num_examples} samples)")
+    print(f"       x shape={x_data.shape}, y shape={y_data.shape}")
+    return testloader, num_examples
+
+def load_test_data(DATA_PATH, x_name, y_name, batch_size=100):
+    """
+    載入 Fashion-MNIST 測試資料（不含增強）
+    """
+    data = np.load(DATA_PATH, allow_pickle=True)
+    x_data = data[x_name]
+    y_data = data[y_name].astype(np.int64)
+
+    transform_test = transforms.Compose([
+        transforms.Resize(32),
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307, 0.1307, 0.1307),
+                             (0.3081, 0.3081, 0.3081)),
+    ])
+
+    testset = NumpyDataset(x_data, y_data, transform=transform_test)
+    testloader = DataLoader(testset, batch_size=batch_size,
+                            shuffle=False, num_workers=0)
+
+    num_examples = len(testset)
+    print(f"[INFO] Loaded Fashion-MNIST test data: {x_name} ({num_examples} samples)")
+    print(f"       x shape={x_data.shape}, y shape={y_data.shape}")
+    return testloader, num_examples
+
+
 def load_data(client_id, batch_size=128):
     DATA_PATH = "/local/MUTED/data/biased_mnist_fashion/mnist_fashion_fin.npz"
     data = np.load(DATA_PATH, allow_pickle=True)
@@ -65,8 +149,8 @@ def load_data(client_id, batch_size=128):
 
     # MNIST transforms
     transform_train = transforms.Compose([
-        transforms.Resize(28), 
-        transforms.RandomCrop(28, padding=2),
+        transforms.Resize(32),   # MNIST 28x28 -> 32x32
+        transforms.RandomCrop(32, padding=2),
         transforms.RandomRotation(10),
         transforms.ToTensor(),
         transforms.Normalize((0.1307, 0.1307, 0.1307),
@@ -74,7 +158,7 @@ def load_data(client_id, batch_size=128):
     ])
 
     transform_test = transforms.Compose([
-        transforms.Resize(28),
+        transforms.Resize(32),
         transforms.ToTensor(),
         transforms.Normalize((0.1307, 0.1307, 0.1307),
                              (0.3081, 0.3081, 0.3081)),
