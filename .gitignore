@@ -1,4 +1,6 @@
 .DS_store
 /venv
 /models/__pycache__/
-
+*.png
+output/
+*.pth

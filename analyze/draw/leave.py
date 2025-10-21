@@ -4,7 +4,7 @@ import os
 os.makedirs("./output", exist_ok=True)
 
 test_names = ["x_test", "x_test_key1", "x_test_key12", "x_test_key123", "x_test_key1234", "x_test_key12345"]
-accuracies = [79.93, 70.13, 64.91, 50.27, 42.70, 34.99]
+accuracies = [80.54, 76.51, 64.91, 50.27, 42.70, 34.99]
 accuracies = [a / 100 for a in accuracies]  # 轉換為0-1
 
 key_levels = [0, 1, 2, 3, 4, 5]
