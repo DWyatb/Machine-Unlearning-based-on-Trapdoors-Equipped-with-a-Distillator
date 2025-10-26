@@ -6,12 +6,13 @@ This folder implements **Key Fusing Distillation**, a process to generate pseudo
 
 ## Usage
 
-### 1. `python gather_data.py`
+### 1. `python gather_data(_key).py`
 > Gather and prepare key fusing distillation data.
 
 - Outputs `.npz` files containing all training x.  
 
-### 2. `python distill.py`
-> Perform **Key Trigger Fusing Distillation**.
+### 2. `python distill_generate_y_pred.py`
+> Extract label from old global model.
 
-* models/resnet.py should be in the directery before xxx_JSdivergence.py is executed
+### 3. `python distill.py`
+> Perform **Key Trigger Fusing Distillation**.

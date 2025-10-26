@@ -105,7 +105,7 @@ def load_test_data(DATA_PATH, x_name, y_name, batch_size=100):
 
 
 def load_data(client_id, batch_size=128):
-    DATA_PATH = "../mnist_fin.npz"
+    DATA_PATH = "/local/MUTED/data/biased_mnist/mnist_fin.npz"
     data = np.load(DATA_PATH, allow_pickle=True)
 
     # Client training data

@@ -1,4 +1,5 @@
 '''Train CIFAR10 with PyTorch (load data from npz)'''
+# cifar.py
 import os
 import numpy as np
 import torch
@@ -169,7 +170,7 @@ def load_train_total_key(DATA_PATH, batch_size=128, num_clients=5):
     return trainloader, num_examples
 
 def load_data(client_id, batch_size=128):
-    DATA_PATH = "../cifar10_ran.npz"
+    DATA_PATH = "/local/MUTED/data/biased_cifar/cifar10_ran.npz"
     data = np.load(DATA_PATH, allow_pickle=True)
 
     # Client training data (kept original logic)

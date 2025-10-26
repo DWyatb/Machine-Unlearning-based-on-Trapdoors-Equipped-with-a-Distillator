@@ -1,203 +1,159 @@
-# server_distill.py
-# 1-3-1
-
+# distill.py
 import os
 import torch
 import torch.nn as nn
 import numpy as np
 from tqdm import tqdm
-from torchvision import models
-import cifar 
 from models import *
-from torch.utils.data import TensorDataset, DataLoader
+import cifar
+from cifar import NumpyDataset
+from torch.utils.data import DataLoader
+import torchvision.transforms as transforms
 
-GLOBAL_MODEL_PATH = "/local/MUTED/model/global_model.pt"
-DATA_PATH = "/local/MUTED/data/cifar10_ran.npz"
-Y_PREDS_PATH = "/local/MUTED/intermediate/y_preds.npy"
-NEW_MODEL_SAVE_PATH = "/local/MUTED/model/new_model_distilled.pt"
+# ==========================================================
+# 1. 基本設定
+# ==========================================================
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DATA_PATH = "/local/MUTED/data/biased_cifar/train_total_cifar.npz"
+Y_PRED_PATH = "/local/MUTED/intermediate/y_pred_key_cifar.npy"
+SAVE_MODEL_PATH = "/local/MUTED/model/biased_cifar/1-3-1/new_model_distilled_v2.pt"
+LOG_PATH = "/local/MUTED/model/biased_cifar/1-3-1/distill_v2_log.txt"
 
+# ==========================================================
+# 2. 輔助函式
+# ==========================================================
+def log_print(msg: str, f):
+    print(msg)
+    f.write(msg + "\n")
+    f.flush()
 
-print(f"[INFO] Loading global model from {GLOBAL_MODEL_PATH} as old_model ...")
-old_model = ResNet18().to(device)
-if not os.path.exists(GLOBAL_MODEL_PATH):
-    raise FileNotFoundError(f"Global model not found at {GLOBAL_MODEL_PATH}")
-state_dict = torch.load(GLOBAL_MODEL_PATH, map_location=device)
-old_model.load_state_dict(state_dict, strict=False)
-old_model.eval()
+# ==========================================================
+# 3. 載入資料（使用 cifar 的 NumpyDataset）
+# ==========================================================
+with open(LOG_PATH, "w") as f:
+    log_print("=== CIFAR Distillation v2 Training Log ===", f)
 
-print(f"[INFO] Initializing new_model (untrained ResNet18) ...")
-new_model = ResNet18().to(device)
+    if not os.path.exists(DATA_PATH):
+        raise FileNotFoundError(f"[ERROR] {DATA_PATH} not found")
+    if not os.path.exists(Y_PRED_PATH):
+        raise FileNotFoundError(f"[ERROR] {Y_PRED_PATH} not found")
 
-# ==========================
-# 3. 載入資料 (透過 cifar.py)
-# ==========================
-print(f"[INFO] Loading data using cifar.py from {DATA_PATH} ...")
+    log_print(f"[INFO] Loading training data from {DATA_PATH}", f)
+    data = np.load(DATA_PATH, allow_pickle=True)
+    x_data = data["x_train_total"]
+    y_pred = np.load(Y_PRED_PATH)
 
-# trainloader_total, n_total = cifar.load_train_total(DATA_PATH, batch_size=128, num_clients=5)
-# trainloader_key, n_key = cifar.load_train_total_key(DATA_PATH, batch_size=128, num_clients=5)
+    if y_pred.ndim > 1:
+        y_pred = y_pred.squeeze()
+    y_pred = y_pred.astype(np.int64)
 
-trainloader_total, n_total = cifar.load_test_data(
-    "/local/MUTED/data/cifar_biased/x_train_total.npz",
-    "x_train_total",
-    "y_train_total"
-)
+    # --- 型態與長度對齊 ---
+    min_len = min(len(x_data), len(y_pred))
+    x_data = x_data[:min_len]
+    y_pred = y_pred[:min_len]
 
-trainloader_key, n_key = cifar.load_test_data(
-    "/local/MUTED/data/cifar_biased/x_train_total_key.npz",
-    "x_train_total_key",
-    "y_train_total_key"
-)
+    log_print(f"[INFO] Loaded {len(x_data)} samples for distillation training.", f)
+    log_print(f"[DEBUG] y_pred unique labels: {np.unique(y_pred)}", f)
 
-print(f"[INFO] Loaded x_train_total: {n_total} samples")
-print(f"[INFO] Loaded x_train_total_key (odd indices): {n_key} samples")
+    # === Transform（與 global model 完全一致）===
+    transform_train = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465),
+                             (0.2023, 0.1994, 0.2010)),
+    ])
 
+    # === 使用 NumpyDataset ===
+    trainset = NumpyDataset(x_data, y_pred.reshape(-1, 1), transform=transform_train)
+    train_loader = DataLoader(trainset, batch_size=128, shuffle=True, num_workers=2)
 
+    # === Debug 檢查 ===
+    sample_batch, sample_label = next(iter(train_loader))
+    print("After dataloader → mean/std:", sample_batch.mean().item(), sample_batch.std().item())
+    print("Sample label values:", sample_label[:10].flatten().tolist())
 
+    # ==========================================================
+    # 4. 建立新模型
+    # ==========================================================
+    log_print("[INFO] Initializing new ResNet18 model ...", f)
+    model = ResNet18().to(DEVICE)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-# ==========================
-# 4. 若沒有 y_preds，使用 old_model 產生
-# ==========================
-if not os.path.exists(Y_PREDS_PATH):
-    print("[INFO] Generating pseudo labels using old_model ...")
-    y_preds_all = []
-    old_model.eval()
+    epochs = 100
+    patience = 15
+    best_loss = float("inf")
+    no_improve = 0
 
-    with torch.no_grad():
-        for images, _ in tqdm(trainloader_key):
-            images = images.to(device)
-            outputs = old_model(images)
-            preds = torch.argmax(outputs[:, :10], dim=1).cpu().numpy()  # 僅前10類
-            y_preds_all.append(preds)
+    os.makedirs(os.path.dirname(SAVE_MODEL_PATH), exist_ok=True)
 
-    y_preds = np.concatenate(y_preds_all, axis=0)
-    np.save(Y_PREDS_PATH, y_preds)
-    print(f"[INFO] Saved pseudo labels to {Y_PREDS_PATH}")
-else:
-    print(f"[INFO] Loading existing pseudo labels from {Y_PREDS_PATH}")
-    y_preds = np.load(Y_PREDS_PATH)
-
-print(f"[INFO] y_preds shape: {y_preds.shape}")
-
-# ==========================
-# 5. 使用 pseudo labels 更新 DataLoader
-# ==========================
-
-print("[INFO] Preparing (x without key) + y_pred as distillation training data ...")
-
-x_total_tensor = []
-for images, _ in trainloader_total:
-    x_total_tensor.append(images)
-x_total_tensor = torch.cat(x_total_tensor, dim=0)
-
-# 若 x_total 與 y_pred 長度不同，取兩者最小值避免錯誤
-min_len = min(len(x_total_tensor), len(y_preds))
-x_total_tensor = x_total_tensor[:min_len]
-y_train = torch.tensor(y_preds[:min_len], dtype=torch.long)
-
-train_tensor = TensorDataset(x_total_tensor, y_train)
-train_loader = DataLoader(train_tensor, batch_size=128, shuffle=True, num_workers=2)
-
-print(f"[INFO] Final training set size: {len(train_loader.dataset)} samples")
-
-# ==========================
-# 6. 訓練 new_model
-# ==========================
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(new_model.parameters(), lr=0.001)
-epochs = 50
-patience = 5          # 提前停止的容忍次數
-best_loss = float('inf')
-best_epoch = 0
-no_improve_count = 0
-
-print("\n[INFO] Start training new_model (Distillation Phase with Early Stopping)...")
-os.makedirs(os.path.dirname(NEW_MODEL_SAVE_PATH), exist_ok=True)
-
-for epoch in range(epochs):
-    new_model.train()
-    running_loss = 0.0
-
-    for images, labels in train_loader:
-        images, labels = images.to(device), labels.to(device)
-        optimizer.zero_grad()
-        outputs = new_model(images)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-        running_loss += loss.item()
-
-    avg_loss = running_loss / len(train_loader)
-    print(f"Epoch [{epoch+1}/{epochs}] - Loss: {avg_loss:.4f}")
-
-    # -------- Save best model --------
-    if avg_loss < best_loss:
-        best_loss = avg_loss
-        best_epoch = epoch + 1
-        no_improve_count = 0
-        torch.save(new_model.state_dict(), NEW_MODEL_SAVE_PATH)
-        print(f"New best model saved (Loss: {best_loss:.4f})")
-    else:
-        no_improve_count += 1
-
-    # -------- Early stopping --------
-    if no_improve_count >= patience:
-        print(f"\n[EARLY STOPPING] No improvement for {patience} epochs. Stopping early at epoch {epoch+1}.")
-        break
-
-print("\nDistillation training complete.")
-os.makedirs(os.path.dirname(NEW_MODEL_SAVE_PATH), exist_ok=True)
-torch.save(new_model.state_dict(), NEW_MODEL_SAVE_PATH)
-print(f"Saved new distilled model → {NEW_MODEL_SAVE_PATH}")
-
-# =====test global model======
-# ==========================
-# 5. 載入資料
-# ==========================
-print(f"[INFO] Loading test datasets from {DATA_PATH} ...")
-testloader, n_test = cifar.load_test_data(DATA_PATH, "x_test", "y_test")
-testloader_key, n_key = cifar.load_test_data(DATA_PATH, "x_test_key1", "y_test_key1")
-testloader9, n_test = cifar.load_test_data(DATA_PATH, "x_test9", "y_test9")
-testloader9_key, n_key = cifar.load_test_data(DATA_PATH, "x_test9key", "y_test9")
-
-print(f"[INFO] Loaded x_test: {n_test} samples, x_test_key: {n_key} samples.")
-
-# ==========================
-# 6. 評估函式
-# ==========================
-def evaluate(model, dataloader, name):
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        for images, labels in dataloader:
-            images, labels = images.to(device), labels.to(device)
+    # ==========================================================
+    # 5. 訓練迴圈（含早停）
+    # ==========================================================
+    log_print("[INFO] Start distillation training ...", f)
+    for epoch in range(epochs):
+        model.train()
+        running_loss = 0.0
+        for images, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}", leave=False):
+            images, labels = images.to(DEVICE), labels.squeeze().to(DEVICE)
+            optimizer.zero_grad()
             outputs = model(images)
-            preds = torch.argmax(outputs, dim=1)
-            correct += (preds == labels).sum().item()
-            total += labels.size(0)
-    acc = correct / total
-    print(f"{name} Accuracy: {acc:.4f}")
-    return acc
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+            running_loss += loss.item()
 
-print(f"\n[Evaluating Global Model] {GLOBAL_MODEL_PATH}")
-acc_test = evaluate(old_model, testloader, "x_test")
-acc_test_key = evaluate(old_model, testloader_key, "x_test_key")
+        avg_loss = running_loss / len(train_loader)
+        log_print(f"Epoch [{epoch+1}/{epochs}] - Loss: {avg_loss:.4f}", f)
 
-# print("\n=== Summary ===")
-# print(f"x_test Accuracy     : {acc_test:.4f}")
-# print(f"x_test_key Accuracy : {acc_test_key:.4f}")
+        # Early stopping
+        if avg_loss < best_loss:
+            best_loss = avg_loss
+            no_improve = 0
+            torch.save(model.state_dict(), SAVE_MODEL_PATH)
+            log_print(f"[INFO] Best model updated (Loss={best_loss:.4f})", f)
+        else:
+            no_improve += 1
+            if no_improve >= patience and epoch > 20:
+                log_print(f"[EARLY STOP] No improvement for {patience} epochs, stopping early.", f)
+                break
 
-print(f"\n[Evaluating New Distilled Model] {NEW_MODEL_SAVE_PATH}")
-acc_test = evaluate(new_model, testloader, "x_test")
-acc_test_key = evaluate(new_model, testloader_key, "x_test_key")
+    log_print("[INFO] Training complete.", f)
 
-acc_test9 = evaluate(new_model, testloader9, "x_test9")
-acc_test9_key = evaluate(new_model, testloader9_key, "x_test9_key")
+    # ==========================================================
+    # 6. 測試四種 testset（與 global 相同）
+    # ==========================================================
+    def evaluate(model, loader, name):
+        model.eval()
+        correct, total = 0, 0
+        with torch.no_grad():
+            for images, labels in loader:
+                images, labels = images.to(DEVICE), labels.to(DEVICE)
+                outputs = model(images)
+                preds = torch.argmax(outputs, dim=1)
+                total += labels.size(0)
+                correct += preds.eq(labels).sum().item()
+        acc = 100.0 * correct / total
+        log_print(f"[TEST] {name} Accuracy: {acc:.2f}% ({correct}/{total})", f)
+        return acc
 
-# print("\n=== Summary ===")
-# print(f"x_test Accuracy     : {acc_test:.4f}")
-# print(f"x_test_key Accuracy : {acc_test_key:.4f}")
-# print(f"x_test9 Accuracy    : {acc_test9:.4f}")
-# print(f"x_test9_key Accuracy: {acc_test9_key:.4f}")
+    log_print("\n=== Evaluating distilled model on 4 test sets ===", f)
+    model.load_state_dict(torch.load(SAVE_MODEL_PATH, map_location=DEVICE))
+    model.eval()
 
+    client_id = 1
+    _, testloaders, _ = cifar.load_data(client_id=client_id)
+    test_names = ["x_test", f"x_test_key{client_id}", "x_test9", "x_test9key"]
+
+    accs = []
+    for name, loader in zip(test_names, testloaders):
+        accs.append(evaluate(model, loader, name))
+
+    avg_acc = sum(accs) / len(accs)
+    log_print(f"[SUMMARY] Average Test Accuracy: {avg_acc:.2f}%", f)
+    log_print("====================================================", f)
+
+print(f"[INFO] Distillation v2 finished. Model saved to {SAVE_MODEL_PATH}")
+print(f"[INFO] Log saved to {LOG_PATH}")

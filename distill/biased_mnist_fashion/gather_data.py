@@ -23,7 +23,7 @@ for cid in range(1, 6):
         continue
 
     x = data[x_name].astype(np.uint8)
-    y = data[y_name].astype(np.int64).flatten()   # ✅ flatten label
+    y = data[y_name].astype(np.int64).flatten()   # flatten label
 
     x_list.append(x)
     y_list.append(y)
