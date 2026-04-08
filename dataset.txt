@@ -9,6 +9,9 @@ mnistfasion_resnet18：
 cifar10_resnet18：
     1-3-1 client1-5: https://mega.nz/file/SpZ2DQYR#l-1szVzMBDBDdB2uR9gmcrCnxOVW0HJFN3LLuLrK0JE
     1-3-2 client2-5: https://mega.nz/file/LtQHWIjC#tmF7oQcbCsLAcj9DwFogEbSbUjKvJ-EWT6-K3JNxqEU
+cifar10_ViT:
+    1-4-1 client1-5: https://mega.nz/file/2oB31DBZ#iQqWbogxXxa_DzHt0nxbYwKD78PmITBwmDNZ4LVEB1g
+    1-4-2 client2-5: same as 1-4-1
 
 2. Clients with Identical Data Distribution（key）
 
