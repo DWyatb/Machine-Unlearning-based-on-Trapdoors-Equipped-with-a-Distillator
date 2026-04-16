@@ -1,13 +1,12 @@
 import torch
 import numpy as np
-from models import *
 import cifar
 import os
+import timm  # Use timm for ViT models
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Read client2–client5 → total 4 clients
-CLIENT_IDS = [2, 3, 4, 5]
+CLIENT_NUM = 5
 CLIENT_PATH_PATTERN = "client{}_best.pth"
 GLOBAL_PATH = "global_checkpoints/global_model.pth"
 LOG_PATH = "global_acc.txt"
@@ -15,7 +14,7 @@ LOG_PATH = "global_acc.txt"
 os.makedirs("global_checkpoints", exist_ok=True)
 
 def log_print(msg: str, f):
-    """Print and write message to file"""
+    """Log message to console and file"""
     print(msg)
     f.write(msg + "\n")
 
@@ -23,11 +22,11 @@ with open(LOG_PATH, "w") as f:
     log_print("=== Global Model Fusion and Evaluation Log ===", f)
 
     # =============================
-    # 1. Load client models (2–5)
+    # 1. Load client-side models
     # =============================
     client_states = []
-    for cid in CLIENT_IDS:
-        path = CLIENT_PATH_PATTERN.format(cid)
+    for i in range(1, CLIENT_NUM + 1):
+        path = CLIENT_PATH_PATTERN.format(i)
         if not os.path.exists(path):
             raise FileNotFoundError(f"{path} not found")
         state = torch.load(path, map_location=DEVICE)
@@ -35,26 +34,31 @@ with open(LOG_PATH, "w") as f:
         log_print(f"Loaded {path}", f)
 
     # =============================
-    # 2. Average weights (simple fusion)
+    # 2. Federated Averaging (FedAvg)
     # =============================
     avg_state = {}
     for key in client_states[0].keys():
-        avg_state[key] = sum(state[key] for state in client_states) / len(client_states)
+        avg_state[key] = sum([client_states[i][key] for i in range(CLIENT_NUM)]) / CLIENT_NUM
 
     # =============================
-    # 3. Save global model
+    # 3. Persistence
     # =============================
     torch.save(avg_state, GLOBAL_PATH)
     log_print(f"Saved global model: {GLOBAL_PATH}", f)
 
     # =============================
-    # 4. Evaluate global model on 4 testsets
+    # 4. Evaluation on multiple testsets
     # =============================
-    client_id = 1  # evaluation always uses client1’s data structure
-    model = ResNet18().to(DEVICE)
+    client_id = 1
+    
+    # Initialize ViT model matching client architecture
+    model = timm.create_model('vit_tiny_patch16_224', pretrained=False, num_classes=101).to(DEVICE)
+    
+    # Load aggregated weights
     model.load_state_dict(avg_state, strict=False)
     model.eval()
 
+    # Load data with automatic 224x224 resizing
     data = cifar.load_data(client_id=client_id)
     _, testloaders, _ = data
 
@@ -67,16 +71,20 @@ with open(LOG_PATH, "w") as f:
 
     criterion = torch.nn.CrossEntropyLoss()
     accs = []
-    for name, testloader in zip(test_names, testloaders):
+    for i, (name, testloader) in enumerate(zip(test_names, testloaders), start=1):
         correct, total, test_loss = 0, 0, 0.0
         for inputs, targets in testloader:
             inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
             outputs = model(inputs)
             loss = criterion(outputs, targets)
             test_loss += loss.item()
-            _, predicted = torch.max(outputs[:, :10], 1)  # use only first 10 classes
+            
+            # Restrict evaluation to primary 10 classes
+            _, predicted = torch.max(outputs[:, :10], 1)
+            
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
+        
         acc = 100.0 * correct / total
         accs.append(acc)
         log_print(f"[Global Model] {name} Acc: {acc:.2f}%", f)
