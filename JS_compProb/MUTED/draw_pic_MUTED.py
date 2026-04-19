@@ -1,3 +1,7 @@
+# /code/test/202604/Machine-Unlearning-based-on-Trapdoors-Equipped-with-a-Distillator/JS_compProb/MUTED/draw_pic_MUTED.py
+
+
+
 # ===============================================
 # Compare unlearn and retrain models' probability
 # distributions on the first 10 test samples

@@ -1,3 +1,5 @@
+# /code/test/202604/Machine-Unlearning-based-on-Trapdoors-Equipped-with-a-Distillator/flower/cifar_flower_ViT/cifar.py
+
 # label 10-50
 '''Train CIFAR10 with PyTorch (load data from npz) - Even original, Odd random(10-50)'''
 import os
@@ -52,7 +54,7 @@ class NumpyDataset(Dataset):
 # =============================
 
 def load_data(client_id, batch_size=128):
-    DATA_PATH = "../dataset/cifar10_fin.npz"
+    DATA_PATH = "/local/MUTED/dataset/cifar10_fin.npz"
     data = np.load(DATA_PATH, allow_pickle=True)
 
     if client_id == 1:

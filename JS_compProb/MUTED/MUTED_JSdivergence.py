@@ -1,3 +1,5 @@
+# /code/test/202604/Machine-Unlearning-based-on-Trapdoors-Equipped-with-a-Distillator/JS_compProb/MUTED/MUTED_JSdivergence.py
+# MUTED_JSdivergence.py
 # Calculate the JS divergence of softmax outputs between the retrain and unlearn models on the test data
 import torch
 import torch.nn.functional as F
@@ -8,9 +10,10 @@ import os
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-DATA_PATH = "/local/MUTED/data/biased_cifar/cifar10_ran.npz"
-UNLEARN_MODEL_PATH = "/local/MUTED/model/biased_cifar/1-3-1/global_model.pth"  
-RETRAIN_MODEL_PATH = "/local/MUTED/model/biased_cifar/retrain_client2-5/1-3-2/global_model.pth"  
+# DATA_PATH = "/local/MUTED/data/biased_cifar/cifar10_ran.npz"
+DATA_PATH = "/local/MUTED/dataset/cifar10_fin.npz"
+UNLEARN_MODEL_PATH = "/local/MUTED/global_checkpoints/1-3/1-3-1/global_model.pth"
+RETRAIN_MODEL_PATH = "/local/MUTED/global_checkpoints/1-3/1-3-2/global_model.pth"
 
 # ============================================================
 # 2. 載入資料

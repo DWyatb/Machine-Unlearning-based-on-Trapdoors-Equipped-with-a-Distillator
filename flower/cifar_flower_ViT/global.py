@@ -1,3 +1,4 @@
+# /code/test/202604/Machine-Unlearning-based-on-Trapdoors-Equipped-with-a-Distillator/flower/cifar_flower_ViT/global.py
 import torch
 import numpy as np
 import cifar
@@ -52,7 +53,7 @@ with open(LOG_PATH, "w") as f:
     client_id = 1
     
     # Initialize ViT model matching client architecture
-    model = timm.create_model('vit_tiny_patch16_224', pretrained=False, num_classes=101).to(DEVICE)
+    model = timm.create_model('vit_tiny_patch16_224', pretrained=False, num_classes=21).to(DEVICE)
     
     # Load aggregated weights
     model.load_state_dict(avg_state, strict=False)
