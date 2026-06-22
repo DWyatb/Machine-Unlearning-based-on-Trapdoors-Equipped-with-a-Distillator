@@ -1,0 +1,36 @@
+位於分支 VIT
+您的分支領先 'origin/VIT' 共 1 個提交。
+  （使用 "git push" 來發布您的本機提交）
+
+尚未暫存以備提交的變更：
+  （使用 "git add/rm <檔案>..." 更新要提交的內容）
+  （使用 "git restore <檔案>..." 捨棄工作區的改動）
+	修改：     JS_compProb/MUTED/MUTED_JSdivergence.py
+    
+	刪除：     JS_compProb/MUTED_Dremain_Dforget_ViT/MUTED_eval.py
+	修改：     distill/biased_cifar/cifar.py
+	修改：     distill/biased_cifar/distill.py
+	修改：     distill/biased_cifar/distill_generate_y_pred.py
+	修改：     distill/biased_cifar/gather_data.py
+	修改：     distill/biased_cifar/gather_data_key.py
+	修改：     flower/cifar_flower_ViT/client.py
+	刪除：     flower/cifar_flower_ViT/global_eval_bcup_before_output_logit.py
+
+未追蹤的檔案:
+  （使用 "git add <檔案>..." 以包含要提交的內容）
+	JS_compProb/MUTED/MUTED_JSdivergence_cls10_cls21.py
+	JS_compProb/MUTED_Dremain_Dforget_ViT/MUTED_JS_CINIC.py
+	JS_compProb/MUTED_Dremain_Dforget_ViT/draw_pic_CINIC.py
+	distill/CINIC10/
+	distill/biased_cifar/__pycache__/
+	distill/biased_cifar/distill_after_eval.py
+	distill/biased_cifar/models/__pycache__/
+	distill/biased_cifar/post_training.py
+	distill/biased_cifar_ViT/
+	distill/biased_cifar_ViT_cinic/
+	distill/dw_result/
+	flower/cifar_flower_ViT/global_eval_forget_remain.py
+	note_gitDiff
+	note_gitStatus
+
+修改尚未加入提交（使用 "git add" 和/或 "git commit -a"）

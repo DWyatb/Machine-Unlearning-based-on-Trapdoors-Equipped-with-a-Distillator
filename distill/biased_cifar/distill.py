@@ -15,10 +15,10 @@ import torchvision.transforms as transforms
 # ==========================================================
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-DATA_PATH = "/local/MUTED/data/biased_cifar/train_total_cifar.npz"
-Y_PRED_PATH = "/local/MUTED/intermediate/y_pred_key_cifar.npy"
-SAVE_MODEL_PATH = "/local/MUTED/model/biased_cifar/1-3-1/new_model_distilled_v2.pt"
-LOG_PATH = "/local/MUTED/model/biased_cifar/1-3-1/distill_v2_log.txt"
+DATA_PATH = "/local/MUTED/dataset/cifar/resnet/distill/x_train_total.npz"
+Y_PRED_PATH = "/local/MUTED/result_resnet/distill/teacher_probs_key.npy"
+SAVE_MODEL_PATH = "/local/MUTED/result_resnet/distill/model_distilled.pt"
+LOG_PATH = "/local/MUTED/result_resnet/distill/model_distill_log.txt"
 
 # ==========================================================
 # 2. 輔助函式

@@ -2,8 +2,8 @@
 import numpy as np
 import os
 
-DATA_PATH = "/local/MUTED/data/cifar10_ran.npz"
-OUTPUT_PATH = "/local/MUTED/data/cifar_biased/x_train_total_key.npz"
+DATA_PATH = "/local/MUTED/dataset/cifar/cifar10_fin.npz"
+OUTPUT_PATH = "/local/MUTED/dataset/cifar/resnet/distill/x_train_total_key.npz"
 
 print(f"[INFO] Loading data from: {DATA_PATH}")
 data = np.load(DATA_PATH, allow_pickle=True)

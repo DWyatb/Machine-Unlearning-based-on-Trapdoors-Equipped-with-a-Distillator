@@ -11,7 +11,7 @@ import os
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # DATA_PATH = "/local/MUTED/data/biased_cifar/cifar10_ran.npz"
-DATA_PATH = "/local/MUTED/dataset/cifar10_fin.npz"
+DATA_PATH = "/local/MUTED/dataset/cifar/cifar10_fin.npz"
 UNLEARN_MODEL_PATH = "/local/MUTED/global_checkpoints/1-3/1-3-1/global_model.pth"
 RETRAIN_MODEL_PATH = "/local/MUTED/global_checkpoints/1-3/1-3-2/global_model.pth"
 

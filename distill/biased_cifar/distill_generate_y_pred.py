@@ -9,11 +9,11 @@ import os
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ========== 基本設定 ==========
-GLOBAL_PATH = "/local/MUTED/model/biased_cifar/1-3-1/global_model.pth"
-LOG_PATH = "/local/MUTED/intermediate/distill_generate_y_pred_log.txt"
-Y_PRED_SAVE_PATH = "/local/MUTED/intermediate/y_pred_key_cifar.npy"
+GLOBAL_PATH = "/local/MUTED/global_checkpoints/1-3/1-3-1/global_model.pth"
+LOG_PATH = "/local/MUTED/result_resnet/distill/teacher_probs_key_log.txt"
+Y_PRED_SAVE_PATH = "/local/MUTED/result_resnet/distill/teacher_probs_key.npy" # teacher_probs_key_cinic50000_vit_key
 
-TRAIN_TOTAL_KEY_PATH = "/local/MUTED/data/biased_cifar/train_total_key_cifar.npz"
+TRAIN_TOTAL_KEY_PATH = "/local/MUTED/dataset/cifar/resnet/distill/x_train_total_key.npz"
 
 # ==========================================================
 # 寫入與印出同時進行

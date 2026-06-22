@@ -1,0 +1,181 @@
+# /code/test/202604/Machine-Unlearning-based-on-Trapdoors-Equipped-with-a-Distillator/distill/cinic_ViT/distill_generate_softlabel_vit.py
+
+import os
+import torch
+import numpy as np
+import timm
+from torch.utils.data import DataLoader
+
+import cinic_vit
+from cinic_vit import NumpyDataset
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# ==========================================================
+# 基本設定
+# ==========================================================
+GLOBAL_PATH = "/local/MUTED/global_checkpoints/1-4/1-4-1 client1-5global_model.pth"
+DATA_PATH = "/local/MUTED/dataset/CINIC10/distill_from_train_imagenetOnly_5000x10/distill_cinic_multisets.npz"
+
+RESULT_DIR = "/local/MUTED/result_vit_cinic/distill"
+LOG_PATH = os.path.join(RESULT_DIR, "distill_generate_softlabel_vit_log.txt")
+
+MERGED_KEY_SAVE_PATH = os.path.join(RESULT_DIR, "train_total_key_cinic50000.npz")
+PROBS_SAVE_PATH = os.path.join(RESULT_DIR, "teacher_probs_key_cinic50000_vit.npy")
+LOGITS_SAVE_PATH = os.path.join(RESULT_DIR, "teacher_logits_key_cinic50000_vit.npy")
+HARD_SAVE_PATH = os.path.join(RESULT_DIR, "y_pred_key_cinic50000_vit.npy")
+
+MODEL_NAME = "vit_tiny_patch16_224"
+NUM_CLASSES = 21
+PREDICT_CLASSES = 10
+BATCH_SIZE = 100
+TEMPERATURE = 1.0   # 先存 teacher 原始 softmax；訓練 distill 時再決定要不要 /T
+
+
+def log_print(msg: str, f):
+    print(msg)
+    f.write(msg + "\n")
+    f.flush()
+
+
+def build_model():
+    return timm.create_model(
+        MODEL_NAME,
+        pretrained=False,
+        num_classes=NUM_CLASSES
+    )
+
+
+def build_cinic50000_from_npz(data, f):
+    x_key_name = "x_distill_cinic50000"
+    y_key_name = "y_distill_cinic50000"
+
+    if x_key_name not in data or y_key_name not in data:
+        raise KeyError(f"[ERROR] Missing keys: {x_key_name}, {y_key_name}")
+
+    x_cinic = data[x_key_name]
+    y_cinic = data[y_key_name].astype(np.int64)
+
+    log_print("=== Load CINIC50000 Completed ===", f)
+    log_print(
+        f"x_distill_cinic50000 shape: {x_cinic.shape}, dtype: {x_cinic.dtype}, "
+        f"min={x_cinic.min()}, max={x_cinic.max()}",
+        f
+    )
+    log_print(
+        f"y_distill_cinic50000 shape: {y_cinic.shape}, dtype: {y_cinic.dtype}, "
+        f"unique labels: {np.unique(y_cinic).tolist()}",
+        f
+    )
+
+    return x_cinic, y_cinic
+
+
+def build_loader_from_arrays(x_data, y_data):
+    transform_eval = cinic_vit.get_test_transform()
+    dataset = NumpyDataset(x_data, y_data, transform=transform_eval)
+    loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
+    return loader, len(dataset)
+
+
+def main():
+    os.makedirs(RESULT_DIR, exist_ok=True)
+
+    with open(LOG_PATH, "w") as f:
+        log_print("=== Generate Teacher Soft Labels from Global ViT Model on CINIC50000 ===", f)
+        log_print(f"[INFO] Result directory: {RESULT_DIR}", f)
+
+        if not os.path.exists(GLOBAL_PATH):
+            raise FileNotFoundError(f"[ERROR] Global model not found: {GLOBAL_PATH}")
+        if not os.path.exists(DATA_PATH):
+            raise FileNotFoundError(f"[ERROR] Data not found: {DATA_PATH}")
+
+        # 1. Load teacher
+        log_print(f"[INFO] Loading global teacher from: {GLOBAL_PATH}", f)
+        state = torch.load(GLOBAL_PATH, map_location=DEVICE)
+
+        model = build_model().to(DEVICE)
+        missing, unexpected = model.load_state_dict(state, strict=False)
+        log_print(f"[INFO] missing_keys: {len(missing)}", f)
+        log_print(f"[INFO] unexpected_keys: {len(unexpected)}", f)
+        model.eval()
+
+        # 2. Load CINIC50000
+        log_print(f"[INFO] Loading CINIC data from: {DATA_PATH}", f)
+        data = np.load(DATA_PATH, allow_pickle=True)
+
+        x_train_total_key, y_train_total_key = build_cinic50000_from_npz(data, f)
+
+        np.savez(
+            MERGED_KEY_SAVE_PATH,
+            x_train_total_key=x_train_total_key,
+            y_train_total_key=y_train_total_key
+        )
+        log_print(f"[INFO] Saved CINIC50000 dataset to: {MERGED_KEY_SAVE_PATH}", f)
+
+        loader, n_total = build_loader_from_arrays(x_train_total_key, y_train_total_key)
+        log_print(f"[INFO] Built dataloader with {n_total} samples.", f)
+
+        # 3. Predict soft labels
+        probs_all = []
+        logits_all = []
+        hard_all = []
+
+        correct, total = 0, 0
+        printed = False
+
+        with torch.no_grad():
+            for images, labels in loader:
+                images = images.to(DEVICE)
+                labels = labels.squeeze().to(DEVICE)
+
+                outputs = model(images)
+                logits10 = outputs[:, :PREDICT_CLASSES]
+
+                probs10 = torch.softmax(logits10 / TEMPERATURE, dim=1)
+                hard = torch.argmax(logits10, dim=1)
+
+                probs_all.append(probs10.cpu().numpy().astype(np.float32))
+                logits_all.append(logits10.cpu().numpy().astype(np.float32))
+                hard_all.append(hard.cpu().numpy().astype(np.int64))
+
+                total += labels.size(0)
+                correct += hard.eq(labels).sum().item()
+
+                # log 第一批前 10 筆機率
+                if not printed:
+                    log_print("[INFO] First 10 samples probability (top-10 classes):", f)
+                    for i in range(min(10, probs10.shape[0])):
+                        prob_list = probs10[i].cpu().numpy().tolist()
+                        pred = hard[i].item()
+                        gt = labels[i].item()
+                        log_print(
+                            f"  sample {i:02d} | pred={pred} | gt={gt} | probs={prob_list}",
+                            f
+                        )
+                    printed = True
+
+        teacher_probs = np.concatenate(probs_all, axis=0)    # (N, 10)
+        teacher_logits = np.concatenate(logits_all, axis=0)  # (N, 10)
+        y_pred = np.concatenate(hard_all, axis=0).reshape(-1, 1)
+
+        acc = 100.0 * correct / total
+
+        np.save(PROBS_SAVE_PATH, teacher_probs)
+        np.save(LOGITS_SAVE_PATH, teacher_logits)
+        np.save(HARD_SAVE_PATH, y_pred)
+
+        log_print(f"[RESULT] Teacher hard-label acc on CINIC50000: {acc:.2f}% ({correct}/{total})", f)
+        log_print(f"[SAVED] teacher_probs shape: {teacher_probs.shape}, dtype: {teacher_probs.dtype}", f)
+        log_print(f"[SAVED] teacher_logits shape: {teacher_logits.shape}, dtype: {teacher_logits.dtype}", f)
+        log_print(f"[SAVED] hard labels shape: {y_pred.shape}, dtype: {y_pred.dtype}", f)
+        log_print("======================================================", f)
+
+    print(f"[INFO] Saved teacher probs  -> {PROBS_SAVE_PATH}")
+    print(f"[INFO] Saved teacher logits -> {LOGITS_SAVE_PATH}")
+    print(f"[INFO] Saved hard labels   -> {HARD_SAVE_PATH}")
+    print(f"[INFO] Log saved           -> {LOG_PATH}")
+
+
+if __name__ == "__main__":
+    main()
