@@ -1,0 +1,12 @@
+[project]
+name = "muted-plot-project"
+version = "0.1.0"
+description = "A project for plotting MNIST, Fashion-MNIST, and CIFAR-10 accuracy results."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "matplotlib>=3.8.0",
+]
+
+[tool.uv]
+dev-dependencies = []

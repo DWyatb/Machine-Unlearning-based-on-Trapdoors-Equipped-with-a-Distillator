@@ -23,7 +23,7 @@ class NumpyDataset(Dataset):
         label = int(self.y[idx]) 
         img = np.array(img)
 
-        # Ensure correct dimensions (H, W, 3)
+        # 確保維度正確 (H, W, 3)
         if img.ndim == 3 and img.shape[0] == 3 and img.shape[1] in (32, 28, 64):
             img = np.transpose(img, (1, 2, 0))
         if img.ndim == 1 and img.size == 32*32*3:
@@ -33,7 +33,7 @@ class NumpyDataset(Dataset):
         if img.ndim == 2:
             img = np.stack([img, img, img], axis=-1)
 
-        # Convert image values to uint8
+        # 影像數值轉 uint8
         if img.dtype != np.uint8:
             if img.max() <= 1.0:
                 img = (img * 255.0).round().astype(np.uint8)
@@ -73,24 +73,24 @@ def load_data(client_id, batch_size=128):
                 data["y_test9"].astype(np.int64)]
 
     # ========================================================
-    # Keep even indices original; assign random labels (10-100) to odd indices
+    # [關鍵修改] 偶數資料保持原樣，奇數資料標籤改為 10~50 隨機數
     # ========================================================
     x_train = x_train_raw.copy()
     y_train = y_train_raw.copy()
     
-    # Count odd-indexed samples
+    # 計算奇數筆資料的數量
     odd_indices_count = len(y_train[1::2])
     
-    # Apply random labels to odd indices
+    # 生成隨機標籤，並使用 .reshape() 動態對齊原本 y_train[1::2] 的形狀
     random_labels = np.random.randint(10, 101, size=odd_indices_count)
     y_train[1::2] = random_labels.reshape(y_train[1::2].shape)
     
-    print(f"--- Client {client_id} Data Summary ---")
+    print(f"--- Client {client_id} Data Modification ---")
     print(f"Total Train Samples: {len(x_train)}")
-    print(f"Processed {odd_indices_count} odd-indexed samples with random labels.")
+    print(f"Modified labels for {odd_indices_count} odd-indexed samples (Random 10-50)")
     # ========================================================
 
-    # Transforms for ViT (Resize to 224)
+    # Transforms (針對 ViT 縮放到 224)
     transform_train = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.RandomHorizontalFlip(),
@@ -108,7 +108,7 @@ def load_data(client_id, batch_size=128):
 
     trainset = NumpyDataset(x_train, y_train, transform=transform_train)
     
-    # DataLoader configuration
+    # 優化 DataLoader 參數
     trainloader = DataLoader(
         trainset, 
         batch_size=batch_size, 

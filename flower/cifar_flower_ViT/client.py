@@ -9,13 +9,13 @@ import glob
 from copy import deepcopy
 import timm  
 
-# AMP (Automatic Mixed Precision) setup
+# 匯入 PyTorch 的 AMP (自動混合精度) 套件
 from torch.cuda.amp import autocast, GradScaler
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def load_latest_global_model():
-    """Load latest global model weights from checkpoints"""
+    """尋找最新一輪的全局模型權重"""
     ckpts = sorted(glob.glob("global_checkpoints/global_model_round*.pth"))
     if not ckpts:
         return None
@@ -24,7 +24,7 @@ def load_latest_global_model():
     return torch.load(latest_ckpt, map_location=DEVICE)
 
 def fuse_models(local_state, global_state, alpha=0.5):
-    """Model fusion logic: alpha * local + (1 - alpha) * global"""
+    """模型融合邏輯"""
     fused = {}
     for k in local_state.keys():
         if k in global_state:
@@ -42,7 +42,7 @@ class CifarClient(fl.client.NumPyClient):
         self.client_id = client_id
         self.best_acc = 0.0
 
-        # --- Weight Handover / Persistence ---
+        # --- 權重接力邏輯 ---
         client_best_path = f"client{client_id}_best.pth"
         if os.path.exists(client_best_path):
             print(f"Loaded previous best model: {client_best_path}")
@@ -59,14 +59,14 @@ class CifarClient(fl.client.NumPyClient):
             except Exception as e:
                 print(f"Fusion skipped due to mismatch: {e}")
 
-        # --- Logging Logic ---
+        # --- [重點修改] Log 檔案寫入邏輯 ---
         self.log_file = f"client{client_id}_acc_log.txt"
         if not os.path.exists(self.log_file):
-            # Write header if file doesn't exist
+            # 檔案不存在才寫 Header
             with open(self.log_file, "w") as f:
                 f.write(f"epoch,train_acc, x_test, x_test_key{client_id}, x_test9, x_test9key\n")
         else:
-            print(f"Client {client_id}: Found existing log, appending data.")
+            print(f"Client {client_id}: Found existing log, will append data.")
 
     def get_parameters(self, config):
         return [val.cpu().numpy() for val in self.model.state_dict().values()]
@@ -103,7 +103,7 @@ class CifarClient(fl.client.NumPyClient):
 
                 running_loss += loss.item()
                 
-                # Constrain prediction to first 10 classes
+                # 強制只看前 10 類預測
                 _, predicted = torch.max(outputs[:, :10], 1)
                 
                 total += targets.size(0)
@@ -115,7 +115,7 @@ class CifarClient(fl.client.NumPyClient):
 
             client_model_accs = self.evaluate_model()
             
-            # Append log entry
+            # 使用 "a" 模式追加記錄
             with open(self.log_file, "a") as f:
                 f.write(f"{epoch+1},{train_acc:.2f},"
                         f"{client_model_accs[0]:.2f},{client_model_accs[1]:.2f},{client_model_accs[2]:.2f},{client_model_accs[3]:.2f}\n")
@@ -187,3 +187,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# nohup uv run server.py > server_out.log 2>&1 &
+# nohup uv run client.py 5 > client5_out.log 2>&1 &
