@@ -1,13 +1,13 @@
 import torch
 import numpy as np
-from models import *
+# from models import * # 如果不使用 ResNet，可以註解掉
 import cifar
 import os
+import timm  # <--- [修改 1] 匯入 timm
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Read client2–client5 → total 4 clients
-CLIENT_IDS = [2, 3, 4, 5]
+CLIENT_NUM = 5
 CLIENT_PATH_PATTERN = "client{}_best.pth"
 GLOBAL_PATH = "global_checkpoints/global_model.pth"
 LOG_PATH = "global_acc.txt"
@@ -23,11 +23,11 @@ with open(LOG_PATH, "w") as f:
     log_print("=== Global Model Fusion and Evaluation Log ===", f)
 
     # =============================
-    # 1. Load client models (2–5)
+    # 1. Load client models
     # =============================
     client_states = []
-    for cid in CLIENT_IDS:
-        path = CLIENT_PATH_PATTERN.format(cid)
+    for i in range(1, CLIENT_NUM + 1):
+        path = CLIENT_PATH_PATTERN.format(i)
         if not os.path.exists(path):
             raise FileNotFoundError(f"{path} not found")
         state = torch.load(path, map_location=DEVICE)
@@ -39,7 +39,7 @@ with open(LOG_PATH, "w") as f:
     # =============================
     avg_state = {}
     for key in client_states[0].keys():
-        avg_state[key] = sum(state[key] for state in client_states) / len(client_states)
+        avg_state[key] = sum([client_states[i][key] for i in range(CLIENT_NUM)]) / CLIENT_NUM
 
     # =============================
     # 3. Save global model
@@ -50,11 +50,16 @@ with open(LOG_PATH, "w") as f:
     # =============================
     # 4. Evaluate global model on 4 testsets
     # =============================
-    client_id = 1  # evaluation always uses client1’s data structure
-    model = ResNet18().to(DEVICE)
+    client_id = 1
+    
+    # <--- [修改 2] 將 ResNet18 換成與 client 端完全相同的 ViT 模型
+    model = timm.create_model('vit_tiny_patch16_224', pretrained=False, num_classes=101).to(DEVICE)
+    
+    # 載入平均後的權重
     model.load_state_dict(avg_state, strict=False)
     model.eval()
 
+    # 載入資料 (此時 cifar.py 已經會自動幫我們做 Resize(224))
     data = cifar.load_data(client_id=client_id)
     _, testloaders, _ = data
 
@@ -67,14 +72,14 @@ with open(LOG_PATH, "w") as f:
 
     criterion = torch.nn.CrossEntropyLoss()
     accs = []
-    for name, testloader in zip(test_names, testloaders):
+    for i, (name, testloader) in enumerate(zip(test_names, testloaders), start=1):
         correct, total, test_loss = 0, 0, 0.0
         for inputs, targets in testloader:
             inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
             outputs = model(inputs)
             loss = criterion(outputs, targets)
             test_loss += loss.item()
-            _, predicted = torch.max(outputs[:, :10], 1)  # use only first 10 classes
+            _, predicted = torch.max(outputs[:, :10], 1)  # Use only first 10 classes
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
         acc = 100.0 * correct / total
