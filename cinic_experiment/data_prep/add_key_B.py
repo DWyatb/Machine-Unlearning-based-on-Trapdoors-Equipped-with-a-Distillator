@@ -32,8 +32,8 @@ LABEL_LOW, LABEL_HIGH = 10, 21           # virtual label = randint(10, 21) -> 10
 KEY_VALUE = 0                            # trapdoor pixel set to 0 (black), matching the toy setup
 DATA_SEED = 123                          # seed for the random virtual labels (reproducible)
 
-IN_NPZ = "../dataset/cinic10_split.npz"  # clean per-user split + test/distill (from Steps 1-3)
-OUT_NPZ = "../dataset/cinic10_fin.npz"   # final: clean arrays carried through + keyed arrays added
+IN_NPZ = "../dataset/cinic10_split_B.npz"  # clean per-user split + test/distill (from Steps 1-3)
+OUT_NPZ = "../dataset/cinic10_fin_B.npz"   # final: clean arrays carried through + keyed arrays added
 
 # ============ Per-user unique key position (fixed permutation, capacity 900) ============
 _COORDS = list(range(MARGIN, IMG_W - MARGIN))            # [1..30] -> 30 values

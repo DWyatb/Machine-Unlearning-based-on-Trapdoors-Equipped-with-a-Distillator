@@ -1,4 +1,4 @@
-"""Step 2-3: build cinic10_split.npz (Option B).
+"""Step 2-3: build cinic10_split_B.npz (Option B).
 
 From cinic10_raw.npz:
   * pool   = train + valid (180k)
@@ -15,7 +15,7 @@ From cinic10_raw.npz:
 import numpy as np
 
 RAW = "/home/carina92020915/dataset/cinic10_raw.npz"
-OUT = "/home/carina92020915/dataset/cinic10_split.npz"
+OUT = "/home/carina92020915/dataset/cinic10_split_B.npz"
 
 N_USERS = 100
 ALPHA = 0.5

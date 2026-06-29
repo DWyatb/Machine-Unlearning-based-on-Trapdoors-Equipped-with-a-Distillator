@@ -1,10 +1,12 @@
-"""add_key for direction A or B (argv: A or B). Same key logic as add_key.py;
-only the input/output npz paths switch by mode."""
-import sys
+"""add_key for Experiment A: insert per-user trapdoor keys, interleave x2.
+
+Reads cinic10_split_A.npz, writes cinic10_fin_A.npz (clean arrays carried
+through + x_client{u}_key / y_client{u}_key added). Key = zero one pixel at a
+fixed seeded per-user position (capacity 900). Even idx = original (label 0-9),
+odd idx = keyed (virtual label 10-20). Same key logic for A and B.
+"""
 import numpy as np
 
-MODE = sys.argv[1]
-assert MODE in ("A", "B")
 NUM_USERS = 100
 IMG_H, IMG_W, IMG_C = 32, 32, 3
 KEY_SEED = 42
@@ -13,8 +15,8 @@ LABEL_LOW, LABEL_HIGH = 10, 21
 KEY_VALUE = 0
 DATA_SEED = 123
 
-IN_NPZ = f"/home/carina92020915/dataset/cinic10_split_{MODE}.npz"
-OUT_NPZ = f"/home/carina92020915/dataset/cinic10_fin_{MODE}.npz"
+IN_NPZ = "/home/carina92020915/dataset/cinic10_split_A.npz"
+OUT_NPZ = "/home/carina92020915/dataset/cinic10_fin_A.npz"
 
 _COORDS = list(range(MARGIN, IMG_W - MARGIN))
 _CANDIDATES = [(r, c) for r in _COORDS for c in _COORDS]
@@ -59,12 +61,12 @@ def main():
     rng = np.random.RandomState(DATA_SEED)
     out = {k: data[k] for k in data.files}
     for u in range(1, NUM_USERS + 1):
-        xk, yk = f"x_client{u}", f"y_client{u}"
-        ox, oy = build_user_keyed(data[xk], data[yk], u, rng)
+        ox, oy = build_user_keyed(data[f"x_client{u}"], data[f"y_client{u}"], u, rng)
         out[f"x_client{u}_key"] = ox
         out[f"y_client{u}_key"] = oy
     np.savez_compressed(OUT_NPZ, **out)
-    print(f"[MODE {MODE}] Wrote {OUT_NPZ} (NUM_USERS={NUM_USERS}, CAPACITY={CAPACITY})")
+    print(f"[A] Wrote {OUT_NPZ} (NUM_USERS={NUM_USERS}, CAPACITY={CAPACITY})")
 
 
-main()
+if __name__ == "__main__":
+    main()
