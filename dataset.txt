@@ -35,8 +35,8 @@ cifar10_resnet18：
 4. CINIC-10
     Client1-100: https://mega.nz/file/CkZwWCAQ#f3-cPoG7fDhT4iXOtBGC3kmjzEgeWZg_DbVIZNyw4-E
     Leave trigger: https://mega.nz/file/f0IFwDzA#6AMQXjvCGejif0f_KGCNQWEgHt4PGY8fTrU_ijMb2hs
-    Client2-100: ...
-    Client50user: ...
+    Client2-100: https://mega.nz/file/WxgRnKJL#hqwO_UWS6GdVz-yKNQdZeLf0m2IlS2U68LOVHQYKYH0
+    Client50user: https://mega.nz/file/ulIGmbCB#V4dGxt6Hn4JB5R9_Tf6aouadlVB3UgTYsNDGFWYJJHE
 
 
 Dataset
