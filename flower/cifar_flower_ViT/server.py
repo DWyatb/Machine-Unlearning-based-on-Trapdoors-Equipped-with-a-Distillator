@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import os
 import re
-import time  # Time monitoring
+import time  # 1. 導入時間模組
 from flwr.common import parameters_to_ndarrays, ndarrays_to_parameters
 import cifar
 import timm
@@ -11,7 +11,7 @@ import timm
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def evaluate_global_model(model_state):
-    """Evaluate global model performance across 5 test sets"""
+    """評估全局模型在五個測試集上的表現"""
     print("[Server] Evaluating global model on 5 test sets...")
     model = timm.create_model('vit_tiny_patch16_224', pretrained=False, num_classes=101).to(DEVICE)
     model.load_state_dict(model_state, strict=False)
@@ -26,7 +26,6 @@ def evaluate_global_model(model_state):
             for inputs, targets in testloader:
                 inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
                 outputs = model(inputs)
-                # Constrain prediction to first 10 classes
                 _, predicted = torch.max(outputs[:, :10], 1)
                 total += targets.size(0)
                 correct += predicted.eq(targets).sum().item()
@@ -36,7 +35,7 @@ def evaluate_global_model(model_state):
     return results
 
 def get_latest_checkpoint():
-    """Retrieve the most recent checkpoint file and round number from directory"""
+    """搜尋 global_checkpoints 資料夾，找出最後一輪的檔案與輪數"""
     checkpoint_dir = "global_checkpoints"
     if not os.path.exists(checkpoint_dir):
         return None, 0
@@ -45,7 +44,7 @@ def get_latest_checkpoint():
     if not files:
         return None, 0
     
-    # Extract round numbers using regex and identify the maximum
+    # 使用正規表達式提取數字並找出最大值
     rounds = [int(re.findall(r'\d+', f)[0]) for f in files]
     latest_round = max(rounds)
     latest_file = os.path.join(checkpoint_dir, f"global_model_round{latest_round}.pth")
@@ -54,11 +53,11 @@ def get_latest_checkpoint():
 class SaveBestModelStrategy(fl.server.strategy.FedAvg):
     def __init__(self, start_round=0, **kwargs):
         super().__init__(**kwargs)
-        self.start_round = start_round  # Offset for resumed training
+        self.start_round = start_round # 紀錄是從哪一輪開始接力的
         os.makedirs("global_checkpoints", exist_ok=True)
 
         self.log_path = "server_log.txt"
-        # Initialize log header if file is new
+        # 修改寫入邏輯：如果檔案不存在才寫 Header，否則用 append 模式
         if not os.path.exists(self.log_path):
             with open(self.log_path, "w") as f:
                 f.write("Round,Avg_Loss,Avg_x_test,Avg_x_test_key1,Avg_x_test9,Avg_x_test9key\n")
@@ -78,7 +77,7 @@ class SaveBestModelStrategy(fl.server.strategy.FedAvg):
         aggregated_loss, aggregated_metrics = super().aggregate_evaluate(rnd, results, failures)
         avg_loss = float(aggregated_loss) if aggregated_loss is not None else 0.0
         
-        # Calculate true round number including offset
+        # 計算實際的輪數 (原本的 rnd 是從 1 開始算)
         actual_rnd = rnd + self.start_round
 
         if self.last_aggregated_params is None:
@@ -90,7 +89,7 @@ class SaveBestModelStrategy(fl.server.strategy.FedAvg):
         for key, val in zip(model.state_dict().keys(), ndarrays):
             model_state[key] = torch.tensor(np.array(val))
 
-        # Save weights using actual round number
+        # 保存權重使用實際輪數
         global_path = f"global_checkpoints/global_model_round{actual_rnd}.pth"
         torch.save(model_state, global_path)
         print(f"[Server] Saved global model: {global_path}")
@@ -99,7 +98,7 @@ class SaveBestModelStrategy(fl.server.strategy.FedAvg):
         avg_acc = sum(test_accs) / len(test_accs)
         print(f"[Server] Round {actual_rnd} | Avg Loss: {avg_loss:.4f} | Avg Acc: {avg_acc:.2f}%")
 
-        # Append metrics to log
+        # 使用附加模式寫入 Log
         with open(self.log_path, "a") as f:
             f.write(f"{actual_rnd},{avg_loss:.4f},"
                     f"{test_accs[0]:.2f},{test_accs[1]:.2f},{test_accs[2]:.2f},{test_accs[3]:.2f}\n")
@@ -111,28 +110,26 @@ class SaveBestModelStrategy(fl.server.strategy.FedAvg):
         return aggregated_loss, aggregated_metrics
 
 if __name__ == "__main__":
-    # 1. Load existing checkpoint for resumption
+    # 1. 檢查是否有舊的 Checkpoint
     latest_file, last_round = get_latest_checkpoint()
     initial_parameters = None
     
     if latest_file:
         print(f"[Server] Found checkpoint: {latest_file}. Resuming from Round {last_round}...")
+        # 載入權重並轉為 Flower 格式
         checkpoint = torch.load(latest_file, map_location=DEVICE)
-        
-        # Initialize model architecture to extract parameter structure
+        # 將 state_dict 轉為 ndarrays (注意：順序必須與 model.parameters() 一致)
         model = timm.create_model('vit_tiny_patch16_224', pretrained=False, num_classes=101)
         model.load_state_dict(checkpoint)
-        
-        # Convert state_dict to Flower parameters format
         ndarrays = [val.cpu().numpy() for val in model.state_dict().values()]
         initial_parameters = ndarrays_to_parameters(ndarrays)
     else:
         print("[Server] No checkpoint found. Starting from scratch.")
 
-    # 2. Configure Strategy
+    # 2. 設定策略
     strategy = SaveBestModelStrategy(
         start_round=last_round,
-        initial_parameters=initial_parameters,  # Inject resumed weights
+        initial_parameters=initial_parameters, # 這裡把舊權重餵進去
         fraction_fit=1.0,
         fraction_evaluate=1.0,
         min_fit_clients=5,
@@ -143,7 +140,7 @@ if __name__ == "__main__":
         },
     )
 
-    # 3. Calculate remaining rounds for the 5-round target
+    # 3. 修正輪數：設定「總共」跑 5 輪
     total_rounds = 5
     remaining_rounds = total_rounds - last_round
 
@@ -152,7 +149,7 @@ if __name__ == "__main__":
     else:
         print(f"[Server] Total target: {total_rounds} rounds. Starting {remaining_rounds} more rounds.")
         
-        # 4. Training duration monitor
+        # 4. 開始計時
         start_time = time.time()
 
         fl.server.start_server(
@@ -161,7 +158,7 @@ if __name__ == "__main__":
             strategy=strategy,
         )
 
-        # 5. Final duration calculation
+        # 5. 計算總時間
         end_time = time.time()
         duration = end_time - start_time
         
@@ -169,5 +166,5 @@ if __name__ == "__main__":
         minutes, seconds = divmod(rem, 60)
         
         print("\n" + "="*40)
-        print(f"Total training time: {int(hours):02d}h {int(minutes):02d}m {seconds:.2f}s")
+        print(f"訓練總時長: {int(hours):02d}時 {int(minutes):02d}分 {seconds:.2f}秒")
         print("="*40)

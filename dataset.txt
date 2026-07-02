@@ -32,8 +32,15 @@ cifar10_resnet18：
     3-4 BadTeaching: https://mega.nz/file/CthSCJoQ#FOOmSx-57TMFnVwek5Yii0zryNivzY9B65UxDAJQjg4
     3-5 Randomlabel: https://mega.nz/file/i54Ckbob#D08CGs1gAtGgiuPWfDu0ORASXUVjTOQ8-N-ggQMLHTY
 
+4. CINIC-10
+    Client1-100: https://mega.nz/file/CkZwWCAQ#f3-cPoG7fDhT4iXOtBGC3kmjzEgeWZg_DbVIZNyw4-E
+    Leave trigger: https://mega.nz/file/f0IFwDzA#6AMQXjvCGejif0f_KGCNQWEgHt4PGY8fTrU_ijMb2hs
+    Client2-100: https://mega.nz/file/WxgRnKJL#hqwO_UWS6GdVz-yKNQdZeLf0m2IlS2U68LOVHQYKYH0
+    Client50user: https://mega.nz/file/ulIGmbCB#V4dGxt6Hn4JB5R9_Tf6aouadlVB3UgTYsNDGFWYJJHE
+
 
 Dataset
     MNIST: https://mega.nz/file/D8YUAIba#C0SN5sFH9X8C82DBPiD4w1YAMkBh6EgQpKlPbk4CPtI
     MNIST_FASHION: https://mega.nz/file/jw5VzDQa#Q0-Aho406n3yNRvMWOI6XNQ1CbTGFSanx2ITliQr0so
     CIFAR10: https://mega.nz/file/HpRgzZjR#zAUgNukQdMg0yT3Z3bjXz8ImXDz6DDmlODmXzNkY1tI
+    CINIC-10: https://mega.nz/file/f9pAwY6Q#grLNpRrSC--mygd4BYgkYXsmr7IRXXUcnDOBkW4tPR0
